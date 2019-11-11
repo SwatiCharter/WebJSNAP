@@ -1,0 +1,494 @@
+/*
+ * Created by Joshua Rogers, josh.rogers@twcable.com,
+ * Description: Check Interface Descriptions to ensure the following criteria are followed
+ *              Check for any looped interfaces in a vpls instance and prohibit commit
+ *              Check for inadvertent delete of major config branch and prohibit commit
+ **    - Begins with a valid first field (CORE,CPE,MTU,MDU,AGG,UPLINK,NNIx,OTHER,UNI,EVP,CUST,TRANS,MGMT)
+ **    - Four Colons (Five fields)
+ **    - MGMT Interfaces have an IP in the fourth field
+ **
+ ** Revision History:
+ **     - 1.0 Initial Draft, checks interface descriptions
+ **     - 1.5 Added looped interface in VPLS instance check
+ **     - 2.0 Added accidental deletion of critical branches of config check
+ **     - 2.1 Added @junos.changed restriction to branch deletion check
+ **     - 2.2 Added uptime check to skip script if uptime < 10 min
+ **     - 2.3 Changed versioning system due to SVN, and added port type EVP
+ **     - 2.4 Added new interface description types
+ **     - 2.5 Remove depracated method of backup RE checking, and used junos-context
+ **     - 2.6 Update interfaces check to include delete/disable of loopback
+ **     - 2.7 protocols delete isn't getting junos:changed tag (possible bug in junos), workaround added to script
+ **     - 2.8 Add LLDP on MTU/CPE/UPLINK/CORE interfaces - Scott Clementoni & Josh Rogers
+ **     - 2.9 Add "VIDEO" service type
+ **     - 2.10 Add "EACCESS" and "ETRANS" service types (Pedro Montero)
+ **     - 2.11 Remove ENNI and add NNI0 (Chris Mele)
+ **     - 2.12 Squawk about essential commit and event scipts - (Josh Rogers)
+ **     - 2.13 Added checks to ensure encapsulation is set on l2circuits - PR877149 (Carl Romanik)
+ **     - 2.14 remove 'LAG' from lldp check, as it was grabbing NNI lag members
+ **     - 2.15 Add checking for large IPv4 prefixes on interfaces/static routes/prefix-lists. (Charles van Niman)
+ **     - 2.16 Adjust IPv4 prefix checking to "Error on shorter than /15, warning on /16-/23." (Charles van Niman)
+ **     - 2.17 Update IPv4 prefix checking to include /15 (Pedro Montero)
+ **     - 2.18 Add checking for IPv6 prefixes on interfaces/static routes/prefix-lists (Pedro Montero)
+ **     - 2.19 Adding new Protect-RE script name check. (Charles van Niman)
+ **     - 2.20 Extending interface checking loop to contain a nodeset of all relevant interfaces (*e-*, ae*) (Charles van Niman)
+ **     - 2.21 Extending interface checking loop to contain a nodeset of all relevant interfaces (et-*) (Mark Reyes)
+ **     - 2.22 Exclude AE interfaces from LLDP checks. Add field 1 ROUTER into logical interface checks. (Dennis Bowman)
+ **     - 2.23 Include LAG interfaces with LLDP checks. Omit field 1 LAG bundled to customer UNI ports. (Dennis Bowman)
+ **     - 2.24 Add 2.14 changes back into LLDP checks. Added Sanity version variable to script annoucement. (Dennis Bowman)
+ **     - 2.25 Fixed blacklisted DNS server checks. (Dennis Bowman)
+ **     - 2.26 Added FIA service_type definition ()
+ **     - 2.27 Added descriptions from SSGs
+ **     - 2.28 Skipped to aligned version numbers
+ **     - 2.29 Introduced new accepted logical unit field 2 description: L3VPN. Also, fixed syntax from $fields[1]="MGMT" to $fields[1]=="MGMT" (Chris Mele)
+ **     - 2.30 Removed VPLS loop protect script file check and added vpls mac move config check (Mohsin Kamal)
+ **     - 2.31 Introduced new knob check for EVPN routing-instances to counter PR1352290 - [edit routing-instance <instance-name> protocols evpn label-allocation per-instance] (Lamoni Finlayson)
+ **
+ */
+
+version 1.1;
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+
+import "../import/junos.xsl";
+
+match configuration {
+var $sanity = "v2.31";
+var $candidate = .;
+var $committed-rpc = <get-configuration database="committed">;
+var $committed = jcs:invoke($committed-rpc);
+if (not($junos-context/commit-context/commit-boot) && $junos-context/re-master) {
+    <xnm:warning> {
+        <message> "Running sanity.slax " _ $sanity _ " ...";
+    }
+    /* Check to see if loopback has been disabled */
+    if (interfaces[ @junos:changed ]) { call error-if-present($mustnot = interfaces/interface[name='lo0']/disable,  $statement = "\nYou are not allowed disable the loopback interface!\nCheck for DISABLEIF applied under the root or interfaces stanzas"); }
+    if (interfaces[ @junos:changed ]) { call error-if-present($mustnot = interfaces/interface[name='lo0']/unit/disable,  $statement = "\nYou are not allowed disable the loopback interface!\nCheck for DISABLEIF applied under the root or interfaces stanzas"); }
+    /* Check to see if loopback has been deleted */
+    if (interfaces[ @junos:changed ]) { call error-if-missing($must = interfaces/interface[name='lo0']/unit, $statement = "You are not allowed to delete the loopback interface!"); }
+    if (protocols[ @junos:changed ]) {
+      call error-if-missing($must = protocols/bgp, $statement = "Protocols BGP is missing.");
+      call error-if-missing($must = protocols/ospf, $statement = "Protocols OSPF is missing.");
+      call error-if-missing($must = protocols/isis, $statement = "Protocols ISIS is missing.");
+      call error-if-missing($must = protocols/ldp, $statement = "Protocols LDP is missing.");
+      call error-if-missing($must = protocols/mpls, $statement = "Protocols MPLS is missing");
+      call error-if-missing($must = protocols/l2circuit, $statement = "Protocols l2circuit is missing");
+    }
+    call warn-if-missing($must = interfaces/interface[name='lo0']/unit[name='0']/family/inet/filter/input[filter-name=('PROTECT-RE' || 'Protect-RE')], $statement = "******************************************************\n*  PROTECT-RE is not applied!                        *\n******************************************************\n* This is dangerous and should be fixed immediately! *\n******************************************************\n");
+    call warn-if-missing($must = interfaces/interface[name='lo0']/unit[name='0']/family/inet6/filter/input[filter-name=('PROTECT-RE-v6' || 'Protect-REv6')], $statement = "******************************************************\n*  PROTECT-REv6 is not applied!                      *\n******************************************************\n* This is dangerous and should be fixed immediately! *\n******************************************************\n");
+    call error-if-missing($must = firewall/family/inet/filter[name=('PROTECT-RE' || 'Protect-RE')], $statement = "PROTECT-RE does not exist, or is not firewall filter family inet!");
+    call error-if-missing($must = firewall/family/inet6/filter[name=('PROTECT-RE-v6' || 'Protect-REv6')], $statement = "Firewall filter PROTECT-RE-v6 does not exist!");
+    call warn-if-missing($must = system/scripts/commit/file[name='Sanity.slax'], $statement = "Sanity.slax script is not enabled.");
+    /* Check essential Scripts configured */
+    call warn-if-missing($must = system/scripts/commit/file[name='SetPolicer.slax'], $statement = "SetPolicer.slax script is not enabled.");
+    call warn-if-missing($must = system/scripts/commit/file[name='bridge-mgmt.slax'], $statement = "bridge-mgmt.slax script is not enabled.");
+    call warn-if-missing($must = system/scripts/commit/file[name='interface-disable.slax'], $statement = "interface-disable.slax script is not enabled.");
+    call warn-if-missing($must = protocols/l2-learning/vpls-mac-move, $statement = "vpls mac move config is missing.");
+    /* Check for blacklisted IP addresses that should never be configured */
+    call error-if-present($mustnot = interfaces/interface/unit/family/inet/address[jcs:regex("^209.18.((3[2-9])|(4[0-7])).*", name)], $statement = "You are not allowed to configure an IP in 209.18.32.0/20 subnet. ");
+
+    /* Check for EVPN knob [edit routing-instance <instance-name> protocols evpn label-allocation per-instance] */
+    for-each (routing-instances/instance[instance-type="evpn"]) {
+            var $evpn_message = "EVPN routing-instance " _ name _ ": 'protocols evpn label-allocation per-instance' knob missing (PR1352290): ";
+            call error-if-missing($must = protocols/evpn/label-allocation[text() = "per-instance"], $statement =  $evpn_message);
+    }
+
+    /* Check for deactivated config */
+    for-each ($committed//@inactive) {
+      <xnm-warning> {
+        call jcs:edit-path();
+        <message> "Found to be inactive";
+      }
+    }
+    /*    <rpc><command>show configuration | display set | display deactivate</command></rpc> */
+
+    var $eth-int = interfaces/interface[contains(name, "e-")][ @junos:changed ];
+    var $agg-int = interfaces/interface[contains(name, "ae")][ @junos:changed ];
+    var $et-int = interfaces/interface[contains(name, "et-")][ @junos:changed ];
+    var $all-int = $eth-int | $agg-int | $et-int;
+
+    /* Looping through all interfaces, then all units of each interface, then all addresses of a unit. */
+    for-each ( $all-int ) {
+            <xnm:warning> {
+                <message> "Checking interface " _ name _ "... ";
+            }
+
+        for-each ( ./unit ) {
+            if ( family/inet/address ) {
+                for-each ( family/inet/address ) {
+                    call checkAddr($addr=name, $type="direct");
+                }
+            }
+            if ( family/inet6/address ) {
+                for-each ( family/inet6/address ) {
+                    call checkAddrv6($addrv6=name, $typev6="direct");
+                }
+            }
+
+            var $uniterrormsg = { call checkdesc($desc=description, $type="Logical"); }
+
+            if ( not( $uniterrormsg == "OK" ) ) {
+                <xnm:error> {
+                    <message> ../name _ "." _ name _ " description [ " _ description _ " ] not standard: " _ $uniterrormsg;
+                }
+            }
+        }
+        var $looped = ../gigether-options/loopback; /* unused? */
+        var $family = {
+           if (encapsulation) {
+             expr substring-after(encapsulation,"vlan-");
+           } else if ( name == 0 ) {
+                     expr substring-after(encapsulation,"ethernet--");
+           }
+        }
+        if ($family=="vpls" && ../gigether-options/loopback) {
+            <xnm:error> {
+                <message> ../name _ "." _ name _ " is configured for VPLS and " _ ../name _ " is configured in loopback, cannot have vpls involved port in loopback!";
+            }
+        }
+                var $errormsg = {
+            call checkdesc($desc=description, $type="Physical");
+        }
+
+        if (description && not($errormsg=="OK")) {
+            <xnm:error> {
+                <message> name _ " description [ " _ description _ " ] not standard: " _ $errormsg;
+            }
+        }
+        var $fields = jcs:split("(:)", description);
+        call lldp-check($if = name, $desc = $fields[1], $top = $candidate, $com = $committed);
+    }
+
+    /* Ensure LLDP is not configured on non-existent interfaces (ie recently deleted) */
+    for-each (protocols/lldp/interface) {
+        var $if = name;
+        if ( not($candidate/interfaces/interface[name==$if]) && $committed/interfaces/interface[name=$if] ) {
+            /* Delete the lldp config if the interface is wiped */
+            <xnm:warning> {
+                <message> "Removing LLDP from deleted interface " _ ./name;
+            }
+            <change>{
+                <protocols> {
+                    <lldp> {
+                        <interface delete="delete"> {
+                            <name delete="delete"> ./name;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /* Ensure OAM is not configured on non-existent interfaces (ie recently deleted) */
+    for-each(protocols/oam/ethernet/link-fault-management/interface) {
+        var $if = name;
+        if (not($candidate/interfaces/interface[name==$if]) && $committed/interfaces/interface[name=$if] ) {
+            /* Delete the oam config if the interface is wiped */
+            <xnm:warning> {
+                <message> "Removing OAM from deleted interface " _ ./name;
+            }
+            <change>{
+                <protocols> {
+                    <oam> {
+                        <ethernet> {
+                            <link-fault-management> {
+                                <interface delete="delete"> {
+                                    <name delete="delete"> ./name;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /* Verify encapsulation is set on interface for any interfaces configured under protocols l2circuit interface */
+    for-each(protocols/l2circuit/neighbor) {
+        for-each(./interface) {
+            var $l2interface = substring-before(name, "\.");
+            var $l2unit = substring-after(name, "\.");
+
+            var $l2encap := {
+                 if ($l2unit > 0) {
+                     var $return = $candidate/interfaces/interface[name = $l2interface]/unit[name = $l2unit]/encapsulation;
+                     copy-of $return;
+                 }
+                 else {
+                     var $return = $candidate/interfaces/interface[name = $l2interface]/encapsulation;
+                     copy-of $return;
+                  }
+            }
+            if (not($l2encap = "ethernet-ccc" or $l2encap = "vlan-ccc")) {
+                <xnm:error> {
+                    <message> "Interface: " _ ./name _ " incorrect encapsulation for l2circuit " _ $l2encap;
+                }
+            }
+        }
+    }
+
+    /* Verify encapsulation is set on interface for any interfaces configured under protocols l2circuit local-switching */
+    for-each(protocols/l2circuit/local-switching/interface) {
+        var $l2interface = substring-before(name, "\.");
+        var $l2unit = substring-after(name, "\.");
+        var $l2encap := {
+             if ($l2unit > 0) {
+                 var $return = $candidate/interfaces/interface[name = $l2interface]/unit[name = $l2unit]/encapsulation;
+                 copy-of $return;
+             }
+             else {
+                 var $return = $candidate/interfaces/interface[name = $l2interface]/encapsulation;
+                 copy-of $return;
+             }
+        }
+        if (not($l2encap = "ethernet-ccc" or $l2encap = "vlan-ccc")) {
+            <xnm:error> {
+                <message> "Interface: " _ ./name _ " incorrect encapsulation for l2circuit " _ $l2encap;
+            }
+        }
+        if (end-interface/interface) {
+            var $end-l2interface = substring-before(end-interface/interface, "\.");
+            var $end-l2unit = substring-after(end-interface/interface, "\.");
+            var $end-l2encap := {
+                if ($end-l2unit > 0) {
+                    var $return = $candidate/interfaces/interface[name = $end-l2interface]/unit[name = $end-l2unit]/encapsulation;
+                    copy-of $return;
+                }
+                else {
+                    var $return = $candidate/interfaces/interface[name = $end-l2interface]/encapsulation;
+                    copy-of $return;
+                }
+            }
+            if (not($end-l2encap = "ethernet-ccc" or $end-l2encap = "vlan-ccc")) {
+                <xnm:error> {
+                    <message> "Interface: " _ end-interface/interface _ " incorrect encapsulation for l2circuit " _ $end-l2encap;
+                }
+            }
+        }
+    }
+    for-each ( routing-options/static/route[ @junos:changed ] ) {
+        call checkAddr($addr=name, $type="static");
+    } /* End of routing-options/static/route for-loop */
+
+    for-each ( routing-options/rib[name="inet6.0"]/static/route[ @junos:changed ] ) {
+        call checkAddrv6($addrv6=name, $typev6="static");
+    } /* End of routing-options/rib/inet6.0/static/route for-loop */
+
+    for-each ( policy-options/prefix-list ) {
+        for-each ( prefix-list-item[ @junos:changed ] ) {
+            if (contains(name, ":")) {
+                call checkAddrv6($addrv6=name, $typev6="prefix-list");
+            }
+                else {
+                    call checkAddr($addr=name, $type="prefix-list");
+            }
+        }
+    } /* End of prefix list checking */
+
+
+  } else {
+     expr jcs:syslog("user.warning", "SANITY: Boot-time commit and not running <commit scripts> at this time");
+  }
+}
+
+template checkdesc($desc, $type) {
+        var $fields = jcs:split("(:)", $desc);
+        var $ifstat = {
+                if ( count( $fields ) != 5 ) {
+                        expr "Incorrect number of fields";
+                } else {
+/* Need to remove DIA once the FIA standard is communicated */
+                        if ((($fields[1]=="CORE" || $fields[1]=="MTU" || $fields[1]=="MDU" || $fields[1]=="AGG" || $fields[1]=="CPE" || $fields[1]=="WAP" || $fields[1]=="UPLINK" || $fields[1]=="NNI0" || $fields[1]=="NNI1" || $fields[1]=="NNI2" || $fields[1]=="LAG" || $fields[1]=="RING" || $fields[1]=="REMCOR" || $fields[1]=="OTHER" || $fields[1]=="EVP" || $fields[1]=="UNI" || $fields[1]=="EVP-UNI" || $fields[1]=="EP-UNI") && $type="Physical")
+                          || (($fields[1]=="CUST" || $fields[1]=="TRANS" || $fields[1]=="INT" || $fields[1]=="CARR" || $fields[1]=="MGMT") && ($fields[2]=="FIA" || $fields[2]=="DIA" || $fields[2]=="ELINE" || $fields[2]=="ETREE" || $fields[2]="ELAN" || $fields[2]=="VOICE" || $fields[2]=="VIDEO" || $fields[2]=="EACCESS" || $fields[2]=="ETRANS" || $fields[1]=="MGMT" || $fields[2]=="L3VPN") && $type="Logical")
+                          || (($fields[1]=="ROUTER") && ($type="Logical"))) {
+                                expr "OK";
+                        } else {
+                                expr "First field is invalid";
+                        }
+                }
+        }
+        expr $ifstat;
+}
+
+template checkAddr($addr, $type) {
+
+    var $cidrNotationArray = jcs:split("(/)", $addr);
+        var $ip                = $cidrNotationArray[1];
+        var $cidr              = $cidrNotationArray[2];
+
+    if ( $cidr == 32 && not( $type == "prefix-list" ) && not( $type == "static")) {
+        <xnm:error> {
+            <message> "IPv4 prefix /32 only permitted on Loopback interfaces. [" _ $type _ "] : [" _ $addr _ "]";
+        }
+        expr jcs:syslog("user.error", "SANITY: IPv4 prefix /32 only permitted on Loopback interfaces. [" , $type , "] : [" , $addr , "]");
+    } else if ( $cidr == 32 && ( $type == "static")) {
+        <xnm:warning> {
+            <message> "IPv4 prefix /32 only permitted on Loopback interfaces, use CAUTION [" _ $type _ "] : [" _ $addr _ "]";
+        }
+        expr jcs:syslog("user.warning", "SANITY: IPv4 prefix /32 only permitted on Loopback interfaces. [" , $type , "] : [" , $addr , "]");
+    } else if ( $cidr <= 15 ) {
+        <xnm:error> {
+            <message> "IPv4 prefix greater or equal than /15 not allowed. [" _ $type _ "] : [" _ $addr _ "]";
+        }
+        expr jcs:syslog("user.error", "SANITY: IPv4 prefix greater or equal than /15 not allowed. [" , $type , "] : [" , $addr , "]");
+    } else if ( $cidr > 15 && $cidr < 24 ) {
+        <xnm:warning> {
+            <message> "IPv4 prefix larger than /24 detected, use caution. [" _ $type _ "] : [" _ $addr _ "]";
+        }
+        expr jcs:syslog("user.warning", "SANITY: IPv4 prefix larger than /24 detected, use CAUTION. [" , $type , "] : [" , $addr , "]");
+    } else {
+        expr "OK";
+    }
+
+}
+
+template checkAddrv6($addrv6, $typev6) {
+
+  var $cidrNotationArray = jcs:split("(/)", $addrv6);
+        var $ipv6              = $cidrNotationArray[1];
+        var $cidr              = $cidrNotationArray[2];
+
+    if ( $cidr == 128 && not( $typev6 == "prefix-list" ) && not( $typev6 == "static" )) {
+        <xnm:error> {
+            <message> "IPv6 prefix /128 only permitted on Loopback interfaces. [" _ $typev6 _ "] : [" _ $addrv6 _ "]";
+        }
+        expr jcs:syslog("user.error", "SANITY: IPv6 prefix /128 only permitted on Loopback interfaces. [" , $typev6 , "] : [" , $addrv6 , "]");
+    } else if ( $cidr == 128 && ( $typev6 == "static" )) {
+        <xnm:warning> {
+            <message> "IPv6 prefix /128 only permitted on Loopback interfaces, use CAUTION [" _ $typev6 _ "] : [" _ $addrv6 _ "]";
+        }
+        expr jcs:syslog("user.warning", "SANITY: IPv6 prefix /128 only permitted on Loopback interfaces. [" , $typev6 , "] : [" , $addrv6 , "]");
+    } else if ( $cidr < 48 ) {
+        <xnm:error> {
+            <message> "IPv6 prefix greater than /48 not allowed. [" _ $typev6 _ "] : [" _ $addrv6 _ "]";
+        }
+        expr jcs:syslog("user.error", "SANITY: IPv6 prefix greater than /48 not allowed. [" , $typev6 , "] : [" , $addrv6 , "]");
+    } else if ( $cidr > 48 && $cidr < 127 ) {
+        <xnm:warning> {
+            <message> "IPv6 prefix within /48 and /127 and different than /48 or /127 detected, use caution. [" _ $typev6 _ "] : [" _ $addrv6 _ "]";
+        }
+        expr jcs:syslog("user.warning", "SANITY: IPv6 prefix within /48 and /127 and different than /48 or /127 detected, use CAUTION. [" , $typev6 , "] : [" , $addrv6 , "]");
+    } else {
+        expr "OK";
+    }
+
+}
+
+template error-if-missing ($must, $statement = "unknown", $message = "missing mandatory configuration statement. ") {
+    if (not($must)) {
+        <xnm:error> {
+            <edit-path> {
+                copy-of $statement;
+            }
+            <message> {
+                copy-of $message;
+            }
+        }
+    }
+}
+
+template error-if-present ($mustnot = 1, $message = "invalid configuration statement. ", $statement = "") {
+    /* give error if param missing */
+    for-each ($mustnot) {
+        <xnm:error> {
+            call jcs:edit-path();
+            call jcs:statement();
+            <message> {
+                copy-of $message;
+                copy-of $statement;
+            }
+        }
+    }
+}
+
+template warn-if-missing ($must, $statement = "unknown", $message = "missing mandatory configuration statement. ") {
+    if (not($must)) {
+        <xnm:warning> {
+            <edit-path> {
+                copy-of $statement;
+            }
+            <message> {
+                copy-of $message;
+            }
+        }
+    }
+}
+
+template warn-if-present ($mustnot = 1, $message = "invalid configuration statement. ", $statement = "") {
+    /* give error if param missing */
+    for-each ($mustnot) {
+        <xnm:warning> {
+            call jcs:edit-path();
+            call jcs:statement();
+            <message> {
+                copy-of $message;
+                copy-of $statement;
+            }
+        }
+    }
+}
+template lldp-check ($if, $desc, $top, $com) {
+    /* if call is for AE interface stop */
+    if (jcs:regex("^ae", $if)) {
+        <xnm:warning> {
+            <message> "LLDP check skipping AE interface " _ $if;
+        }
+    /* If call is for accepted interface type and is not already in protocols/lldp then add interface */
+    } else if ((($desc=="CORE") or ($desc=="MTU") or ($desc=="MDU") or ($desc=="AGG") or ($desc=="CPE") or ($desc=="UPLINK") or ($desc=="RING") or ($desc=="REMCOR")) && (not($top/protocols/lldp/interface[name==$if]))) {
+        <xnm:warning> {
+            <message> "Adding LLDP to non customer interface " _ $if _ " based on first field: " _ $desc;
+        }
+        <change>{
+            <protocols> {
+                <lldp> {
+                    <interface> {
+                        <name> $if;
+                    }
+                }
+            }
+        }
+    /* If call is for LAG interface check associated bundle for customer UNI description, if not UNI and not already in protocols/lldp then add interface */
+    } else if (($desc == "LAG")) {
+        var $bundle = $top/interfaces/interface[name == $if]/gigether-options/ieee-802.3ad/bundle;
+        var $agg-check-committed = jcs:split("(:)", $com/interfaces/interface[name == $bundle]/description);
+        var $agg-check-candidate = jcs:split("(:)", $top/interfaces/interface[name == $bundle]/description);
+        /* bundle interfaces may or may not be @junos:changed */
+        if (($agg-check-committed[1] == "UNI") or ($agg-check-candidate[1] == "UNI")) {
+            <xnm:warning> {
+                <message> "LLDP check skipping customer UNI interface " _ $if _ " based on " _ $bundle _ " first field: UNI" ;
+            }
+        } else if ((jcs:regex("^NNI", $agg-check-committed[1])) or (jcs:regex("^NNI", $agg-check-candidate[1]))) {
+            <xnm:warning> {
+                <message> "LLDP check skipping non-internal network interface " _ $if _ " based on " _ $bundle _ " first field: NNI" ;
+            }
+        } else if (not($top/protocols/lldp/interface[name==$if])) {
+            <xnm:warning> {
+                <message> "Adding LLDP to non customer LAG interface " _ $if _ " based on first field: " _ $desc;
+            }
+            <change>{
+                <protocols> {
+                    <lldp> {
+                        <interface> {
+                            <name> $if;
+                        }
+                    }
+                }
+            }
+        }
+    /* If call is for unaccepted interface type and is  already in protocols/lldp then remove interface */
+    } else if (not(($desc=="CORE") or ($desc=="MTU") or ($desc=="MDU") or ($desc=="AGG") or ($desc=="CPE") or ($desc=="UPLINK") or ($desc=="RING") or ($desc=="REMCOR")) && ($top/protocols/lldp/interface[name==$if])) {
+        /* Delete the lldp config if the interface is wiped */
+        <xnm:warning> {
+            <message> "Removing LLDP from non-internal interface " _ $if _ " based on first field: " _ $desc;
+        }
+        <change>{
+            <protocols> {
+                <lldp> {
+                    <interface delete="delete"> {
+                        <name delete="delete"> $if;
+                    }
+                }
+            }
+        }
+    }
+}

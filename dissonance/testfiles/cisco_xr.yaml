@@ -1,0 +1,77 @@
+show-bgp-summary:
+- command: show bgp summary
+- ignore-null: True
+- iterate:
+    id: peer-address
+    tests:
+    - err: 'BGP AS: {{post["peer-as"]}}, NEI: {{post["peer-address"]}} changed from
+        {{pre["peer-state"]}} to {{post["peer-state"]}}'
+      info: No BGP Neighbor States Changed
+      no-diff: peer-state
+    - err: 'BGP Neighbor: ''{{post["peer-address"]}}'' disappeared'
+      info: BGP list did not lose peers
+      list-not-less: null
+    xpath: bgp-peer
+show-interfaces-descriptions:
+- command: show interfaces descriptions
+- ignore-null: True
+- iterate:
+    id: name
+    tests:
+    - err: 'Physical Interface gone missing: {{post["name"]}}'
+      info: Physical Interface list change check
+      list-not-less: null
+    - err: Physical interface {{post["name"]}} admin status changed from {{pre["admin-status"]}}
+        to {{post["admin-status"]}}!
+      info: Physical Interface admin status change check
+      no-diff: admin-status
+    - err: Physical interface {{post["name"]}} oper status changed from {{pre["oper-status"]}}
+        to {{post["oper-status"]}}!
+      info: Physical Interface oper status change check
+      no-diff: oper-status
+    xpath: physical-interface
+- iterate:
+    id: name
+    tests:
+    - err: 'Logical Interface gone missing: {{post["name"]}}'
+      info: Logical Interface list change check
+      list-not-less: null
+    - err: Logical interface {{post["name"]}} admin status changed from {{pre["admin-status"]}}
+        to {{post["admin-status"]}}!
+      info: Logical Interface admin status change check
+      no-diff: admin-status
+    - err: Logical interface {{post["name"]}} oper status changed from {{pre["oper-status"]}}
+        to {{post["oper-status"]}}!
+      info: Logical Interface oper status change check
+      no-diff: oper-status
+    xpath: logical-interface
+show-isis-neighbors:
+- command: show isis neighbors
+- ignore-null: True
+- iterate:
+    id: interface-name
+    tests:
+    - err: ISIS adjacency on {{post["interface-name"]}} is not in 'Up' state
+      info: Health Check - Any ISIS adjacencies down?
+      is-equal: adjacency-state, Up
+    - err: ISIS Adjacency State {{post["interface-name"]}} changed from {{pre["adjacency-state"]}}
+        to {{post["adjacency-state"]}}!
+      info: ISIS Adjacency State change check
+      no-diff: adjacency-state
+    - err: 'ISIS adjacency gone missing: {{post["interface-name"]}}'
+      info: ISIS adjacency list change check
+      list-not-less: null
+    - err: ISIS peer MAC address {{post["interface-name"]}} changed from {{pre["snpa"]}}
+        to {{post["snpa"]}}!
+      info: ISIS peer MAC address change check
+      no-diff: snpa
+    - err: ISIS peer system name {{post["interface-name"]}} changed from {{pre["system-name"]}}
+        to {{post["system-name"]}}!
+      info: ISIS peer system name change check
+      no-diff: system-name
+    xpath: isis-adjacency
+tests_include:
+- show-bgp-summary
+- show-interfaces-descriptions
+- show-isis-neighbors
+

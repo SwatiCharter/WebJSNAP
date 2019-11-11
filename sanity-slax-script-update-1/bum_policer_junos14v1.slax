@@ -1,0 +1,60 @@
+/*
+ * Modified script by Michael Pergament, mpergament@juniper.net
+ * Description: Add VPLS Flood policer $fwfiltername on 
+ * each VPLS routing instance if no fwfilter is applied.
+ *
+ ** Rev  Date	     Author   	Descr     
+ ** 1.0  2015-12-07  jimwalker  Original script
+ **
+ */
+version 1.0;
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+
+import "../import/junos.xsl";
+
+/* use a global connection for all rpc connections */
+var $connection = jcs:open();
+
+match configuration {
+ if (not($junos-context/commit-context/commit-boot) && $junos-context/re-master) {
+    var $top = .;
+    for-each (routing-instances/instance) {
+        var $rinstance = name;
+        var $cfilter = forwarding-options/family/vpls/flood/input; 
+        var $fwfiltername = $rinstance _ "-BUM-FILTER";
+        if (not($cfilter) && (instance-type == "vpls")) {
+            <xnm:warning> {
+                <message> "Applying " _ $fwfiltername _ " filter to routing-instance " _ $rinstance;
+            }
+            <change> {
+                <firewall> {
+                    <family> {
+                        <vpls> {
+                            <filter> {
+                                <name>$fwfiltername;
+                                <apply-groups> "BUM-POLICER";
+                            }
+                        }
+                    }
+                }
+                <routing-instances> {
+                    <instance> {
+                        <name> $rinstance;
+                        <forwarding-options> {
+                            <family> {
+                                <vpls> {
+                                    <flood> {
+                                        <input> $fwfiltername;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+ }
+}

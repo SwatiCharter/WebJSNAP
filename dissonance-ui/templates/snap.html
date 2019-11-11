@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row">
+
+    <div class="col-sm-6 col-sm-offset-3">
+        <!-- general form elements -->
+        <div class="box box-primary">
+            <div class="box-header with-border">
+                <h3 class="box-title">Snapshot</h3>
+            </div>
+            <!-- /.box-header -->
+            <!-- form start -->
+            <form role="form">
+                <div class="box-body">
+                    <div class="form-group">
+                        <input type="text" class="form-control" id="hostname" value="ASBNVAEG1CW" placeholder="Hostname/IP">
+                    </div>
+
+                    <button type="submit" id="submit_snap_button" class="btn btn-primary btn-block"><i class="fa fa-camera"></i> Snap</button>
+                </div>
+            </form>
+            <div id="div_result" class="alert alert-success" style="display: none;">
+                <div id="div_result_msg" class="text-center"></div>
+            </div>
+        </div>
+        <!-- /.box -->
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_javascript %}
+<script>
+$(document).ready(function() {
+    $('#submit_snap_button').click(function(e) {
+        $('#submit_snap_button').html('<i class="fa fa-refresh fa-spin"></i>');
+        $('#submit_snap_button').attr("disabled", true);
+        $('#div_result').hide();
+        $.getJSON("http://molab-backend:5000/snapshot/" + $('#hostname').val(), function(data) {
+            $('#div_result_msg').html(data.message);
+            if (data.success === 0) {
+                $('#div_result').addClass('alert-danger').removeClass('alert-success')
+            }
+            else {
+                $('#div_result').addClass('alert-success').removeClass('alert-danger')
+            }
+
+            $('#div_result').show();
+            $('#submit_snap_button').attr("disabled", false);
+            $('#submit_snap_button').html('<i class="fa fa-camera"></i> Snap');
+
+        }, function() {
+
+        }, 'json');
+        e.preventDefault();
+    });
+
+})
+</script>
+{% endblock %}

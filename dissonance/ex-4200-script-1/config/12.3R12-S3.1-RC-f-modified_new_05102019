@@ -1,0 +1,958 @@
+#!/bin/sh
+#
+# $Id: partition-dual-root.sh 558531 2013-01-02 23:58:39Z rodrigc $
+#
+# Copyright (c) 2009, Juniper Networks, Inc.
+# All rights reserved.
+#
+# Disk partitioning utility functions with dual root partitioning support
+#
+# The functions in this script are used by install-loader during loader based
+# installation, and by snapshot-dual-root for performing snapshot.
+#
+# NOTE:
+#   1. This file is meant to be a library of script functions.
+#      Please do not add non-function code here. This is especially important
+#      since this script is prepended to install-loader script.
+#
+#   2. The compute_partitions function in this file determines the partitioning
+#      scheme to be applied on a given target media.
+#      To change the slices and partitions which are created, and their sizes
+#      this function should be modified.
+#      Since this function is called by loader installation and snapshot, the
+#      same partitioning scheme will take effect in both cases.
+#      For more info refer to compute_partitions implementation and comments
+#
+
+
+# Default temporary area
+TMP=/tmp
+
+# Log file - dump everything on console unless told otherwise
+LOG_FILE=/dev/console
+
+# The first partition in a BSD slice begins after this many blocks
+BSD_PARTITION_OFFSET=16
+
+# Product model is a useful parameter. Define globally at the beginning
+product_model=$(sysctl -n hw.product.model)
+
+# 1G media is the default minimum required size for dual root partitioning
+DEFAULT_DUAL_ROOT_MEDIA_MIN_SIZE=1000000000
+
+# Display error messages on failure and exit
+# $@: Error message
+error() {
+    echo "ERROR: $@" >&2
+    exit 1
+}
+
+
+# Display warning message and continue
+# $@: Warning message
+warn() {
+    echo "WARNING: $@" >&2
+}
+
+
+# Execute given command and verify whether it succeeds
+# $@: Command line to execute
+critical()
+{
+    eval "$@" >> $LOG_FILE 2>&1
+
+    status=$?
+    if [ "$status" != 0 ]; then
+	error "Execution failed for command $1"
+    fi
+}
+
+
+# If the media has any specific alignment preference for slices, return
+# the preferred alignment (in number of sectors)
+# $1: Target media
+get_preferred_alignment()
+{
+    case "$product_model:$1" in
+    # The internal media of SRXLE platforms have a physical block size of
+    # 128K. Aligning s1 to a 128K boundary will ensure that the MBR and s1
+    # do not share a physical block
+    srx100*:*da0*) echo 256;;      # 1 Phys Block = 128K = 256 sectors
+    srx210*:*da0*) echo 256;;      # 1 Phys Block = 128K = 256 sectors
+    srx240*:*da0*) echo 256;;      # 1 Phys Block = 128K = 256 sectors
+    ex45*:*da0*) echo 63;;
+    ex62*:*da0*) echo 63;;
+    ex82*:*da0*) echo 63;;
+    ex32*:*da0*) echo 256;;
+    ex33*:*da0*) echo 256;;
+    ex42*:*da0*) echo 256;;
+    ex43*:*da0*) echo 256;;
+    ex2200-24*|ex2200-48*:*da0*) echo 256;;
+
+    # Return nothing if there is no alignment preference - s1 will be head
+    # aligned, and the rest will be cylinder aligned by default.
+    *) ;;
+    esac
+}
+
+# Return the minimum size of media allowed for dual-root partitioning to proceed
+get_dual_root_min_media_size()
+{
+    case "$product_model" in
+    srx*) echo $DEFAULT_DUAL_ROOT_MEDIA_MIN_SIZE;;
+    ex*) echo $DEFAULT_DUAL_ROOT_MEDIA_MIN_SIZE;;
+    *) echo $DEFAULT_DUAL_ROOT_MEDIA_MIN_SIZE;;
+    esac
+}
+
+# Get disk geometry information for the target media
+# $1: Target media
+get_media_info()
+{
+    local devinfo="$(sysctl -b kern.geom.conftxt | grep -a "DISK ${target_media##*/}")"
+
+    [ "$devinfo" ] || error "Could not find disk geometry information for $target_media"
+
+    eval $(sysctl -b kern.geom.conftxt |
+	   grep -a "DISK ${target_media##*/}" | awk '{
+	   print "media_size_bytes=" $4
+	   print "media_size_sectors=" int($4 / $5)
+	   print "sectors_per_track=" $9
+	   print "heads=" $7
+	   print "sector_size_bytes=" $5
+	   print "cylinders=" int($4 / $5 / $7 / $9)
+	   print "cylinder_size_sectors=" int($9 * $7)
+	 }')
+
+}
+
+# Returns the partitions defined in the given spec file
+# $1: Spec file
+get_partition_list()
+{
+    awk "/^s[1-4][a-z]=[0-9]+/ /^s[1-4][a-z]=MAX/" $1 |
+        sed 's/^\(.*\)=\(.*\)/\1/'
+}
+
+
+# Create slices on media while maintiaining alignment constraints
+# $1: Target media on which fdisk should run
+# $2: Required size of slice 1 in MB  (Optional)
+# $3: Required size of slice 2 in MB  (Optional)
+# $4: Required size of slice 3 in MB  (Optional)
+# $5: Required size of slice 4 in MB  (Optional)
+slice_media()
+{
+    # Get the device name
+    local target_media=$1
+    local sz offset
+
+    # Shift the slice sizes in $1-$4
+    shift
+
+    # Get media size and geometry information
+    get_media_info
+
+    (
+	echo "Preparing to create slices on $target_media"
+	echo -n "$target_media: $media_size_sectors sectors "
+	echo "[C:$cylinders H:$heads S:$sectors_per_track SS:$sector_size_bytes]"
+    ) >> $LOG_FILE
+
+    # Set starting offset to the preferred alignement if any
+    offset=$(get_preferred_alignment $target_media)
+
+    # If no alignment preference was specified, then start after the first
+    # track - this is the usual convention.
+    # Sector 0 has MBR. Rest of the track is left out so that beginning of
+    # first slice is head aligned. So first slice begins after track 0.
+    if [ -z "$offset" ]; then
+	offset=$sectors_per_track
+    fi
+
+    # Initialize fdisk configuration: write disk geometry information
+    echo "g c$cylinders h$heads s$sectors_per_track" > $TMP/fdisk.spec
+
+    local i=1
+    for sz in $1 $2 $3 $4
+    do
+	# If media size has been reached, then subsequent slices cannot be created
+	if [ $offset -ge $media_size_sectors ]; then
+	    error "Media size exceeded, slice $i could not be created"
+	    i=$(($i + 1))
+	    continue
+	fi
+
+	local slice_size_sectors=0
+	if [ $sz != "MAX" ]; then
+	    # Calculate slice size in number of sectors
+	    slice_size_sectors=$(((1024 * 1024 / $sector_size_bytes) * $sz))
+	else
+	    # Size specified as "MAX": extend slice to end of media
+	    slice_size_sectors=$(($media_size_sectors - $offset))
+	fi
+
+	# Compute end of slice
+	local slice_end=$(($offset + $slice_size_sectors))
+
+	# Chop off any extra beyond media size
+	local slice_extra=$(($slice_end - $media_size_sectors))
+	if [ $slice_extra -gt 0 ]; then
+	    echo "Shrinking slice $i by $slice_extra blocks to fit media size" >> $LOG_FILE
+	    slice_size_sectors=$(($slice_size_sectors - $slice_extra))
+	    slice_end=$(($offset + $slice_size_sectors))
+	fi
+
+	# Compute end of slice after any media size adjustments
+	slice_end=$(($offset + $slice_size_sectors))
+
+	# Chop off any extra beyond cylinder alignment
+	slice_extra=$(($slice_end % $cylinder_size_sectors))
+	if [ $slice_extra -gt 0 ]; then
+	    echo "Shrinking slice $i by $slice_extra blocks for alignment" >> $LOG_FILE
+	    slice_size_sectors=$(($slice_size_sectors - $slice_extra))
+	fi
+
+        # Did we end up making the size zero in the attempt to align it?
+	if [ $slice_size_sectors -le 0 ]; then
+	    error "Unable to allocate space for slice $i" >> $LOG_FILE
+	fi
+
+	# Append the config for current slice
+	#     p slice type start   length
+	echo "p $i    0xA5 $offset $slice_size_sectors" >> $TMP/fdisk.spec
+
+	# Increment offset and move to next slice
+	offset=$(($offset + $slice_size_sectors))
+	i=$(($i + 1))
+    done
+
+    # Mark slice 1 as the active slice
+    echo "a 1" >> $TMP/fdisk.spec
+
+    # Create a dummy 512 byte file to use as mbr
+    critical dd if=/dev/zero of=$TMP/mbr count=1 bs=512
+
+    # Run fdisk
+    echo "Creating slices:" >> $LOG_FILE
+    cat $TMP/fdisk.spec >> $LOG_FILE
+    critical fdisk -qib $TMP/mbr -f $TMP/fdisk.spec $target_media
+
+    # Write default bsdlabels into each slice to overwrite any old labels
+    for i in $(ls ${target_media}s[1-4])
+    do
+	critical bsdlabel -w $i
+    done
+
+    rm -f $TMP/fdisk.spec $TMP/mbr
+}
+
+
+# Get the size of a slice in terms of sectors
+# $1: Target media
+# $2: Slice number
+get_slice_size_sectors()
+{
+    # Check that the slice exists
+    if [ ! -e $1s$2 ]; then
+	error "Attempt to find size of non-existing slice $1s$2"
+    fi
+
+    # Extract the size from fdisk -s
+    fdisk -s $1 | awk "/^   $2/ { print \$3 }"
+}
+
+# Get the file system options specific to platform and its partitions.
+# $1: Target Partition which will be initialized by newfs
+get_fs_options()
+{
+    case "$product_model" in
+    ex*)
+        case "$1" in
+        *s1a) echo "-O1";;
+        *s2a) echo "-O1";;
+        *s3d) echo "-O1";;
+        *s3e) echo "-O1";;
+        *s4d) echo "-O1";;
+        esac
+        ;;
+    esac
+}
+
+# Divide a slice into partitions as given in spec file by writing a bsdlabel
+# The algorithm here makes sure that the partitions are cylinder aligned
+# $1: Target media
+# $2: Slice number
+# $3: Partition spec file
+partition_slice()
+{
+    local target_media=$1
+    local slice_number=$2
+    local spec_file=$3
+    local p sz
+
+    # Remove any old bsdlabel config
+    rm -f $TMP/bsdlabel.spec
+
+    # Pick lines in the partition spec file which have entries of the form
+    # sX[a-z]=<size> or sX[a-z]='*' where X=slice_number
+    awk "/^s${slice_number}[a-z]=[0-9]+/ /^s${slice_number}[a-z]=MAX/" $spec_file |
+	sed 's/^s[1-4]\([a-z]\)=\(.*\)/\1 \2/' > $TMP/partition-list
+
+    # Check if we have any partitions to create in this slice
+    if [ ! -s $TMP/partition-list ]; then
+	# The partition spec has no partition information for this slice -
+	# skip bsdlabel for this slice.
+	if [ -e ${target_media}s${slice_number} ]; then
+	    warn "No partitions specified for Slice ${slice_number}, no label was written"
+	fi
+        return
+    fi
+
+    # Ok, so we need to create some partitions on this slice
+    # Make sure the slice we are about to partition actually exists
+    if [ ! -e ${target_media}s${slice_number} ]; then
+	error "Attempt to create partitions in slice $slice_number. The slice does not exist."
+    fi
+
+    # Get media size and geometry information
+    get_media_info
+
+    # We are good to proceed
+    echo "Computing layout of partitions in ${target_media}s${slice_number}..."
+
+    # Set starting offset to the preferred alignement if any
+    offset=$(get_preferred_alignment $target_media)
+
+    # If no alignment preference was specified, then start after the first
+    # 16 512 byte blocks - this is the usual convention.
+    if [ -z "$offset" ]; then
+	offset=$BSD_PARTITION_OFFSET
+    fi
+
+    # The slice we are partitioning has this many sectors
+    local slice_size_sectors=$(get_slice_size_sectors $target_media $slice_number)
+
+    # Read partition name and requested size one by one and proceed
+    while read p sz
+    do
+	# If slice size has been reached, then subsequent partitions cannot be created
+	if [ $offset -ge $slice_size_sectors ]; then
+	    error "Slice size exceeded, partition $p could not be created"
+	    continue
+	fi
+
+	local partition_size_sectors=0
+	if [ $sz != "MAX" ]; then
+	    # Calculate partition size in number of sectors
+	    partition_size_sectors=$(((1024 * 1024 / $sector_size_bytes) * $sz))
+	else
+	    # Size specified as "MAX": extend partition to end of slice
+	    partition_size_sectors=$(($slice_size_sectors - $offset))
+	fi
+
+	# Compute end of partition
+	local partition_end=$(($offset + $partition_size_sectors))
+
+	# Chop off any extra beyond slice size
+	local partition_extra=$(($partition_end - $slice_size_sectors))
+	if [ $partition_extra -gt 0 ]; then
+	    echo "Shrinking partition $p by $partition_extra blocks to fit slice size" >> $LOG_FILE
+	    partition_size_sectors=$(($partition_size_sectors - $partition_extra))
+	fi
+
+	# Compute end of partition after any slice size adjustments
+	partition_end=$(($offset + $partition_size_sectors))
+
+	# The end of the partition must be cylinder aligned
+	partition_extra=$(($partition_end % $cylinder_size_sectors))
+	if [ $partition_extra -gt 0 ]; then
+            # Can we shrink the partition?
+            if [ $partition_extra -lt $partition_size_sectors ]; then
+		# Yes, the partition is big enough to be shrunk down
+		# Chop off any extra beyond cylinder alignment
+		echo "Shrinking partition $p by $partition_extra blocks for alignment" >> $LOG_FILE
+		partition_size_sectors=$(($partition_size_sectors - $partition_extra))
+            else
+		# No, its a teensy weensy partition
+		# Round it up to the cylinder boundary
+		local round_up=$(($cylinder_size_sectors - $partition_extra))
+		echo "Rounding up partition $p by $round_up blocks for alignment" >> $LOG_FILE
+		partition_end=$(($partition_end + $round_up))
+            fi
+	fi
+
+        # Did we end up making the size zero in the attempt to align it?
+	if [ $partition_size_sectors -le 0 ]; then
+	    error "Unable to allocate space for partition $p" >> $LOG_FILE
+	fi
+
+	# Append the config for current partition
+	#      p: size                    start   fstype
+	echo "$p: $partition_size_sectors $offset unused 0 0" >> $TMP/bsdlabel.spec
+
+	# Increment offset and move to next partition
+	offset=$(($offset + $partition_size_sectors))
+    done < $TMP/partition-list
+
+    # Add the default c partition
+    echo "c: * * unused 0 0" >> $TMP/bsdlabel.spec
+    echo "Labeling ${target_media}s${slice_number}:" >> $LOG_FILE
+
+    # Write the bsdlabel
+    bsdlabel -Rn ${target_media}s${slice_number} $TMP/bsdlabel.spec >> $LOG_FILE 2>&1
+    critical bsdlabel -R ${target_media}s${slice_number} $TMP/bsdlabel.spec
+
+    # Run newfs on all partitions on the media (except for b&c partitions)
+    local partition=""
+    for partition in $(ls ${target_media}s${slice_number}[^bc])
+    do
+	critical newfs $(get_fs_options $partition) $partition
+	# Create the /dev/bo0 symlinks corresponding to the newly created
+	# partition as scripts use these to refer to the partitions
+	# irrespective of the actual boot device
+	# Use expr to extract the slice and partition - append it to /dev/bo0
+	local symlink=/dev/bo0$(expr $partition : '.*\(s[1-4][a-z]\)')
+	ln -s -f $partition $symlink  > /dev/null 2>&1
+	# Either the symlink already existed, or we created it now.
+	[ -h $symlink ] || error "Failed to create symlink $symlink for $partition"
+    done
+
+    rm -f $TMP/partition-list $TMP/bsdlabel.spec 
+}
+
+
+
+# Format the target media into slices and partitions as mentioned in spec file
+# $1: Target media
+# $2: Partition spec file
+create_disk_layout()
+{
+    local target_media=$1
+    local spec_file=$2
+
+    # Read partition spec file and create slices on the media
+    for i in 1 2 3 4
+    do
+	# Evaluate lines in the partition spec file which have entries of the
+	# form s[1-4]=<size> or s[1-4]=MAX. This creates variables $s[1-4]
+	# whose value is the size of the corresponding slice
+	# NOTE: Validations should be done while generating the partition spec
+	# as none is performed here.
+	eval $(awk "/^s$i=[0-9]+/ /^s$i=MAX/" $spec_file)
+    done
+
+    # Use the s[1-4] variables generated above to create the slices
+    echo "Formatting target media $target_media ..." >> $LOG_FILE
+    slice_media $target_media $s1 $s2 $s3 $s4
+
+    # Create required partitions within each slice by writing bsdlabels
+    for i in 1 2 3 4
+    do
+        partition_slice ${target_media} $i $spec_file
+    done
+}
+
+
+# Decide the slices and partitions that need to be created, and their sizes.
+# This decision can depend on media size, product model, or any other
+# parameter, and finally a partition spec is generated.
+#
+# The partition spec file is used in subsequent steps to fdisk and bsdlabel
+# the media to create the slices and partitions mentioned in the spec.
+#
+# The objective is to encapsulate all the decision making and computation
+# related to slices and partitions in this function alone. The calls
+# to fdisk and bsdlabel and generation of bsdlabel spec is decoupled from
+# this computation.
+#
+#   The format of the partition spec file is as follows:
+#   s[1-4]=[0-9]*  # Specifies size of slice in MB. No other unit is supported
+#                  # at present
+#   s[1-4]=MAX     # The slice will occupy rest of the space in the media
+#
+#   s[1-4][a-z]=<size>  # Specifies size of partition in MB. No other unit is
+#                       # supported at present
+#   s[1-4][a-z]=MAX     # The partition will occupy rest of the space in the slice
+#
+#   All other lines are ignored
+#
+# NOTE:
+# 1. All of the above must be placed at the beginning of the line with no
+#    leading tabs or spaces.
+# 2. The c partition should not be specified. It is created automatically by
+#    the partitioning code.
+#
+# $1: Target media
+# $2: Path to spec file (for output)
+compute_partitions()
+{
+    local target_media=$1
+    local spec_file=$2
+
+    # Partitioning logic, disk sizes are specific to platforms. Platform
+    # specific overloading needs to be done here 
+    # Please note: This routine is a jump table into platform specific 
+    # compute_partitions routines. Platforms not having dual-root functionality
+    # need to silently return from here. Do not add any platform specific code
+    # before this point.
+    case "$product_model" in
+    ex-xre*) ;;
+    ex*) compute_partitions_ex $target_media $spec_file ;;
+    *) compute_partitions_srxsme $target_media $spec_file ;;
+    esac
+}
+
+# Calculates EX specific slice and partition sizes for target media & outputs 
+# into the spec file
+#
+# EX Partitioning Scheme
+# |   dual root     |              shared space                     |
+# |      37%        |                  63%                          |
+# | root 1 | root 2 |    var/tmp  +  var       | config  | recovery |
+# |        |        |          80%             |       20%          |
+# | 18.5%  | 18.5%  |      75%       |   25%   |   50%   |  50%     |
+#
+# $1: Target media
+# $2: Partition spec file
+compute_partitions_ex()
+{
+    local target_media=$1
+    local spec_file=$2
+
+    echo "Computing slice and partition sizes for $target_media ..." >> $LOG_FILE
+
+    # Get the size and geometry information for the media
+    get_media_info
+
+    local media_size_mb=$(expr $media_size_bytes \/ 1024 \/ 1024)
+
+    if [ "$media_size_bytes" -lt $(get_dual_root_min_media_size) ]; then
+	# Media size is too small
+	echo "The target media $target_media ($media_size_bytes bytes)" \
+             "is too small."
+	echo "The installation cannot proceed"
+	error "Target media is too small"
+	return
+    fi
+
+    # Allocate for root, var and config first. Ratios are as above
+    # The remaining goes into recovery which is currently unused
+    # Do not create recovery slice/partition. This will lead to snapshot failure
+    # since it cannot be mounted due to earlier 4 slice implementation
+    # Step 1 : Reserve per gb space
+    local dual_root_mb_per_gb=375
+    local config_mb_per_gb=63
+    local var_mb_per_gb=500
+    local var_tmp_percent=75
+
+    # Step 2 : Calculate actual space in mb. The remaining space remains
+    # unallocated for future use
+    local config_mb=$(($config_mb_per_gb * $media_size_mb / 1000))
+    local root_mb=$(($dual_root_mb_per_gb * $media_size_mb / 1000))
+    local var_mb=$(($var_mb_per_gb * $media_size_mb / 1000))
+    local var_tmp_mb=$(($var_mb * $var_tmp_percent / 100))
+
+    root_mb=$(($root_mb / 2))
+
+    # Generate computed partition spec using here-docs
+    cat - > $spec_file <<HERE_DOC_EOF
+# Root slice 1
+s1=$root_mb
+# Root slice 2
+s2=$root_mb
+# Var and var/tmp in slice 3
+s3=$var_mb
+# Let Config slice takes the rest 
+s4=MAX
+
+# Root partition in slice 1 occupies entire slice
+s1a=MAX
+# Root partition in slice 2 occupies entire slice
+s2a=MAX
+# var/tmp partition in slice 3
+s3d=$var_tmp_mb
+# var partition takes the rest on the slice
+s3e=MAX
+# config partition occupies part of the remaining space
+s4d=$config_mb
+HERE_DOC_EOF
+}
+
+# Calculates SRX specific slice and partition sizes for target media & outputs 
+# into the spec file
+# $1: Target media
+# $2: Partition spec file
+compute_partitions_srxsme(){
+    local target_media=$1
+    local spec_file=$2
+
+    echo "Computing slice and partition sizes for $target_media ..." >> $LOG_FILE
+
+    # Get the size and geometry information for the media
+    get_media_info
+
+    local media_size_mb=$(expr $media_size_bytes \/ 1024 \/ 1024)
+
+    if [ "$media_size_bytes" -lt $(get_dual_root_min_media_size) ]; then
+	# Media size is too small
+	echo "The target media $target_media ($media_size_bytes bytes)" \
+             "is too small."
+	echo "The installation cannot proceed"
+	error "Target media is too small"
+	return
+    fi
+
+    # Media size is suitable for dual-root partitioning
+    # Compute slice and partition sizes:
+    #   1. Reserve space for config, recovery and var_reserve in the media
+    #   2. Allocate the rest of the space to the two roots and var in
+    #      the ratio of root_ratio:root_ratio:var_ratio
+    local var_reserve_mb=100
+    local var_ratio=10
+    local root_ratio=12
+    local config_mb_per_gb=25
+    local recovery_software_mb_per_gb=27
+    local recovery_state_mb_per_gb=3
+    local recovery_slice_mb_per_gb=$(($recovery_software_mb_per_gb + $recovery_state_mb_per_gb))
+
+    # STEP1: Reserve space for config, recovery and var_reserve and find
+    #	out how much remains
+    local config_mb=$(($config_mb_per_gb * $media_size_mb / 1000))
+    local recovery_state_mb=$(($recovery_state_mb_per_gb * $media_size_mb / 1000))
+    local recovery_slice_mb=$(($recovery_slice_mb_per_gb * $media_size_mb / 1000))
+    local remaining_mb=$(($media_size_mb - $config_mb - $recovery_slice_mb - $var_reserve_mb))
+
+    # STEP2: Divide the remaining space among var and two roots
+    local ratio_divisor=$(($root_ratio * 2 + $var_ratio))
+    local root_mb=$(($remaining_mb * $root_ratio / $ratio_divisor))
+    local var_mb=$(($remaining_mb * $var_ratio / $ratio_divisor + $var_reserve_mb))
+
+    # Generate computed partition spec using here-docs
+    cat - > $spec_file <<HERE_DOC_EOF
+# Root slice 1
+s1=$root_mb
+# Root slice 2
+s2=$root_mb
+# Var and config partitions are together in slice 3
+s3=$(($config_mb + $var_mb))
+# Let recovery slice take rest of the space till end of media
+s4=MAX
+
+# Root partition in slice 1 occupies entire slice
+s1a=MAX
+# Root partition in slice 2 occupies entire slice
+s2a=MAX
+# Config partition in slice 3
+s3e=${config_mb}
+# Var partition in slice 3 occupies rest of the slice
+s3f=MAX
+# Partition for storing recovery state in slice 4
+s4e=${recovery_state_mb}
+# Partition for storing recovery software in slice 4 occupies the rest of the slice
+s4a=MAX
+HERE_DOC_EOF
+}
+
+
+# Save bsdlabels of all slices in a media along with a checksum in a given
+# directory
+# $1: Target media
+# $2: Save Path
+#
+save_bsdlabel_recovery_info()
+{
+    local target_media save_path file_name
+
+    target_media=$1
+    save_path=$2
+
+    # Iterate over all slices in the target media and save bsdlabel of each
+    # slice along with a checksum
+    for slice in $(ls ${target_media}s[1-4] 2> /dev/null)
+    do
+	file_name=$(expr $slice : '.*\(s[1-4]\)$').bsdlabel
+	bsdlabel $slice > "$save_path/$file_name" ||
+	    error "Failed to create $save_path/$file_name"
+	sha256 < "$save_path/$file_name" > "$save_path/$file_name.sha256" ||
+	    error "Failed to create $save_path/$file_name.sha256"
+    done
+}
+
+
+#!/bin/sh
+#
+# $Id$
+#
+# Copyright (c) 2011, Juniper Networks, Inc.
+# All rights reserved.
+#
+# Check for sanity of partitions /, /var, /var/tmp prior to mount. If a partition is
+# found to be corrupt, recreate it. This script needs to run during early boot
+# prior to actually mounting file systems so that system doesn't abort booting
+# due to a bad filesystem.
+#
+
+. /etc/rc.conf
+
+mdirs() {
+    for d in $*
+    do
+        [ -d $d ] || mkdir $d || continue
+        chown 0:0 $d && chmod 755 $d
+    done
+}
+
+# Returns the platform specific newfs options
+get_newfs_opt()
+{
+    case ${model} in
+    ex-xre*) 
+        ;;
+    *) echo "-O1"
+        ;;
+    esac
+}
+
+checkfs_and_mount()
+{
+    local mpt=$1
+    local mnt_opt=" "
+
+    if [ ${mpt} = "/" ]; then
+        if [ "$model" = "ex-xre" ]; then
+            mnt_opt=" -u -o rw"
+        else
+            mnt_opt=" -u -o ro "
+        fi
+    fi
+
+    echo "Soft-updates on ${mpt} is disabled"
+    tunefs -n disable ${mpt} > /dev/null 2>&1
+
+    if [ ${mpt} = "/var" ]; then
+        for i in 1 2 3 4
+        do
+	    echo "Running pass $i of fsck on ${mpt}"
+            watchdog -a fsck -f -y -T ufs:-t ${mpt}
+        done
+    fi
+
+    # If mount failed after fsck, the partition is still corrupt
+    if watchdog -a fsck -f -y -T ufs:-t ${mpt} && mount ${mnt_opt} ${mpt}; then
+        : # File system is clean and mounted.
+    else
+        case ${model} in
+        ex-xre*)
+            echo 'Automatic file system check failed . . .'
+            Exit 1
+            ;;
+        *)
+            ;; # for EX series try recovery.
+        esac
+
+        echo "Warning: Fsck failed on $mpt ..."
+        if [ $mpt = "/" ]; then
+            # reboot would boot the system from alternate slice (as boot.success
+            # is not set yet) if boot sequencing is enabled in uboot
+            reboot
+        else
+            # Include space for unique results (eg: /var search is not unique)
+            local dev=$(grep $mpt[[:space:]] /etc/fstab | awk '{ print $1}')
+
+            # First check, mount failed due to missing labels
+            if [ ! -c ${dev} ]; then
+                local slice=`echo $dev | sed 's,/dev/da[0-9]s\([0-9]\).*,\1,'`
+
+                echo "Warning: ${mpt} label [ $dev ] missing"
+                # The spec_file for partitioning exists in /tmp. This check will
+                # handle the cases when /tmp was full or unmounted.
+                if [ -f $spec_file ]; then
+                    partition_slice $boot_device $slice $spec_file
+                    # The partitioning has been done, try mounting it again
+                    mount ${mpt}
+                else
+                    echo "Warning: Failed to access partition information from "
+                         "/tmp"
+                    echo "*** Status: fail ***"
+                fi
+            else
+                echo "Warning: ${mpt} [ ${dev} ] appears to be corrupt."
+                echo "Formatting $dev to recover"
+                newfs $(get_newfs_opt) $dev
+                if [ $? -eq 0 ]; then
+                    echo "*** Status: success ***"
+                    mount ${mpt}
+                else
+                    echo "*** Status: fail ***"
+                fi
+            fi
+        fi
+    fi
+}
+
+watchdog -a dd if=/dev/da0s3e of=/dev/null bs=128k conv=noerror || echo "dd failed"
+
+# Do Media Check before doing anything on the media
+if [ -x /usr/sbin/nand-mediack ]; then
+    for i in 1 2 3 4 5
+    do
+	echo "Running pass $i of nand-mediack"
+        sh /usr/sbin/nand-mediack || echo "*** Errors corrected ***"
+    done
+fi
+
+model=`sysctl -n hw.product.model`
+checkfs_and_mount /
+
+# Mount /var first so that we can create needed directories before
+# mounting all file systems.
+checkfs_and_mount /var
+for D in crash cron/tabs db empty etc etcroot log mfs rundb tmp; do
+    [ -d /var/$D ] || (rm -f /var/$D; mdirs /var/$D)
+done
+
+for D in jail/etc jail/run jail/tmp; do
+    [ -d /var/$D ] || (rm -f /var/$D; mkdir -p /var/$D; chmod 777 /var/$D)
+done
+
+chmod +t /var/jail/tmp
+# If we are zeroizing, complete it.
+
+zeroize_flag_check=0
+if [ -f /var/etc/need.zeroize ]; then
+    zeroize_flag_check=1
+    # Source need.zeroize file to get value of zeroize flag
+	. /var/etc/need.zeroize
+	# Now invoke rc.zeroize with proper flag
+    # Need to unmount /var before zeroizing
+    umount -f /var
+	/sbin/rc.zeroize ${zeroize_flag}
+    mount /var
+fi
+# The check will compare the major and minor release numbers
+# obtained from the kernel via uname and the id string from the
+# kernel package and gripe loudly if there is a mismatch.
+pkg_version=`/usr/sbin/pkg_info -aI 2>/dev/null |
+      /usr/bin/sed  -n 's/^jkernel[^\[]*\[\([0-9]*\.[0-9]*\).*\].*$/\1/p'`
+kernel_version=`/usr/bin/uname -r |
+      /usr/bin/sed -n 's/^\([0-9]*\.[0-9]*\).*/\1/p'`
+if [ -z "$pkg_version" ]; then
+    echo "Could not get version information on the <jkernel> package"
+elif [ "$pkg_version" != "$kernel_version" ]; then
+    echo "\
+------
+------ WARNING: The version of the kernel ($kernel_version)  you are
+------ running is different from the version of the jkernel
+------ package ($pkg_version).
+------"
+fi
+
+# Clear /tmp at boot time in case we had a /tmp file system failure and
+# were forced to use the root partition's /tmp as a last resort.  We
+# need to clear it out before using it as a mount point, or we'll never
+# be able to recover the space under /tmp later on.
+#
+# prune quickly with one rm, then use find to clean up /tmp/[lq]*
+# (not needed with mfs /tmp, but doesn't hurt there...)
+(cd /tmp && rm -rf [a-km-pr-zA-Z]* .[a-zA-Z0-9]* &&
+      find -d . ! -name . ! -name lost+found ! -name quotas \
+      -exec rm -rf -- {} \;)
+
+# If we have a /tmp mfs, mount it right now.  If the mount fails, we're
+# in a bad state, because root will evenually be read only.  Warn us but
+# continue because /tmp and /var fate share.
+mount /tmp
+if [ $? != 0 ]; then
+    echo "WARNING:"
+    echo "WARNING: /tmp file system mount failed, continuing startup"
+    echo "WARNING: swap area may not be online"
+    echo "WARNING:"
+fi
+
+# Device to use for partition calculations
+boot_device=`df -nlk | grep ' /$' | sed 's,\(..[0-9][0-9]*\).*,\1,'`
+
+# Create disk layout on target media in the spec file
+spec_file=/tmp/partitions.spec
+
+# Compute partition sizes and write the data into the spec file. Might be
+# useful if any labels have gone missing since the last reboot
+# This is a common partitioning routines between the snapshot and install
+compute_partitions $boot_device $spec_file
+
+#
+# Pick up a possible vmcore from partition for /var/tmp
+#
+dumpdev=`cat /etc/fstab | grep " /var/tmp " | awk '{ print $1 }'`
+scrc=1
+if [ -e ${dumpdev} ]; then
+    watchdog -a savecore -C /tmp ${dumpdev}
+    scrc=$?
+fi
+if [ ${scrc} -eq 0 ]; then
+    watchdog -a savecore -vKZ /tmp ${dumpdev}
+    scrc=$?
+    # clear dump header (savecore extraction may have failed)
+    watchdog -a savecore -c /tmp ${dumpdev} >/dev/null 2>&1
+
+    newfs $(get_newfs_opt) ${dumpdev}
+    mount /var/tmp
+    chmod 1777 /var/tmp
+    if [ ${scrc} -eq 0 ]; then
+        mv /tmp/info.0 /var/tmp/
+        mv /tmp/vmcore.0.gz /var/tmp/
+    fi
+else
+    checkfs_and_mount /var/tmp
+    chmod 1777 /var/tmp
+fi
+
+checkfs_and_mount /config
+
+mount -a -t nonfs
+if [ $? -ne 0 ]; then
+    echo "local file system mount failed, startup aborted"
+    Exit 1
+fi
+
+# In case of a /var corruption there is a need to restore the master password
+# database and recreate the password for the sytem. The following code changes
+# are for restoring files that are neccesary to login to the system if a /var
+# corruption happens.
+if [ "$model" != "ex-xre" ]; then
+
+    mpwd=/var/etcroot/master.passwd
+    rm -f ${mpwd}
+    cp /etc/master.passwd.sys ${mpwd}
+    pwd_mkdb -p -d /var/etcroot ${mpwd}
+    rm ${mpwd}
+    ln -sf /var/etc/master.passwd ${mpwd}
+
+    if [ ${zeroize_flag_check} -eq 1 ] || [ ! -f /etc/spwd.db ]; then
+        # zeroize operation was performed, so making / read write and 
+        # linking the necessary files that has been wiped out
+    
+        mount -u -o rw /
+        ln -sf /var/etcroot/spwd.db /etc/spwd.db
+        ln -sf /var/etcroot/pwd.db /etc/pwd.db
+        rm -fr /etc/ssh
+        mkdir -p /var/etcroot/ssh
+        touch /var/etc/ssh_known_hosts
+        ln -sf /var/etc/ssh_known_hosts /var/etcroot/ssh/ssh_known_hosts
+        ln -sf /var/etcroot/ssh /etc/ssh
+        mount -u -o ro /
+    fi
+fi
+
+mkdir -p ${ROOT_MNTPT}/var/etc
+cp ${ROOT_MNTPT}/etc/group.sys ${ROOT_MNTPT}/var/etc/group
+       
+if [ ! -d /var/etcroot/ssh ] || [ ! -L /etc/ssh ]; then
+    mount -u -o rw /
+    mkdir -p /var/etcroot/ssh 2> /dev/null
+    rm -fr /etc/ssh
+    ln -sf /var/etcroot/ssh /etc/ssh
+    mount -u -o ro /
+fi
+

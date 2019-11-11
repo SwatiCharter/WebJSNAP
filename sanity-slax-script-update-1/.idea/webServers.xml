@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="c6d7f976-0cc3-444e-aefb-39b875ada4f8" name="AUSDTXIR1CW" url="http://71.42.150.65">
+        <fileTransfer host="71.42.150.65" port="22" rootFolder="/var/db/scripts/commit" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" />
+          </advancedOptions>
+          <option name="port" value="22" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

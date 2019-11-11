@@ -1,0 +1,211 @@
+show-bgp-summary:
+- command: show bgp summary
+- iterate:
+    id: peer-address
+    tests:
+    - err: 'BGP AS: {{post["peer-as"]}}, NEI: {{post["peer-address"]}} changed from
+        {{pre["peer-state"]}} to {{post["peer-state"]}}'
+      info: No BGP Neighbor States Changed
+      no-diff: peer-state
+    - err: 'BGP Neighbor: ''{{post["peer-address"]}}'' disappeared'
+      info: BGP list did not lose peers
+      list-not-less: null
+    - err: 'BGP AS: {{post["peer-as"]}}, NEI: {{post["peer-address"]}} is in {{post["peer-state"]}}
+        state'
+      info: Health Check - Any BGP Peers not in 'Established' state?
+      is-equal: peer-state, Established
+    xpath: bgp-peer
+show-interfaces-descriptions:
+- command: show interfaces descriptions
+- iterate:
+    id: name
+    tests:
+    - err: 'Physical Interface gone missing: {{post["name"]}}'
+      info: Physical Interface list change check
+      list-not-less: null
+    - err: Physical interface {{post["name"]}} status changed from {{pre["admin-status"]}}
+        to {{post["admin-status"]}}!
+      info: Physical Interface admin status change check
+      no-diff: admin-status
+    - err: Physical interface {{post["name"]}} status changed from {{pre["oper-status"]}}
+        to {{post["oper-status"]}}!
+      info: Physical Interface oper status change check
+      no-diff: oper-status
+    - err: Physical interface {{post["name"]}} is {{post["oper-status"]}}
+      info: Health Check - Are all physical interfaces Link up?
+      is-equal: oper-status, up
+    - err: Physical interface {{post["name"]}} is {{post["admin-status"]}}
+      info: Health Check - Are all physical interfaces Admin up?
+      is-equal: admin-status, up
+    xpath: physical-interface
+- iterate:
+    id: name
+    tests:
+    - err: 'Logical Interface gone missing: {{post["name"]}}'
+      info: Logical Interface list change check
+      list-not-less: null
+    - err: Logical interface {{post["name"]}} status changed from {{pre["admin-status"]}}
+        to {{post["admin-status"]}}!
+      info: Logical Interface admin status change check
+      no-diff: admin-status
+    - err: Logical interface {{post["name"]}} status changed from {{pre["oper-status"]}}
+        to {{post["oper-status"]}}!
+      info: Logical Interface oper status change check
+      no-diff: oper-status
+    - err: Logical interface {{post["name"]}} is {{post["oper-status"]}}
+      info: Health Check - Are all logical interfaces Link up?
+      is-equal: oper-status, up
+    - err: Logical interface {{post["name"]}} is {{post["admin-status"]}}
+      info: Health Check - Are all logical interfaces Admin up?
+      is-equal: admin-status, up
+    xpath: logical-interface
+show-isis-neighbors:
+- command: show isis adjacency
+- iterate:
+    id: interface-name
+    tests:
+    - err: ISIS adjacency on {{post["interface-name"]}} is not in 'Up' state
+      info: Health Check - Any ISIS adjacencies down?
+      is-equal: adjacency-state, Up
+    - err: ISIS Adjacency State {{post["interface-name"]}} changed from {{pre["adjacency-state"]}}
+        to {{post["adjacency-state"]}}!
+      info: ISIS Adjacency State change check
+      no-diff: adjacency-state
+    - err: 'ISIS adjacency gone missing: {{post["interface-name"]}}'
+      info: ISIS adjacency list change check
+      list-not-less: null
+    - err: ISIS peer MAC address {{post["interface-name"]}} changed from {{pre["snpa"]}}
+        to {{post["snpa"]}}!
+      info: ISIS peer MAC address change check
+      no-diff: snpa
+    - err: ISIS peer system name {{post["interface-name"]}} changed from {{pre["system-name"]}}
+        to {{post["system-name"]}}!
+      info: ISIS peer system name change check
+      no-diff: system-name
+    xpath: isis-adjacency
+show-ldp-neighbor:
+- command: show ldp neighbor
+- iterate:
+    id: ldp-neighbor-address
+    tests:
+    - err: 'LDP Neighbor gone missing: {{post["interface-name"]}}'
+      info: LDP Neighbor list change check
+      list-not-less: null
+    - err: LDP Label Space ID Interface {{post["ldp-neighbor-address"]}} changed from
+        {{pre["ldp-label-space-id"]}} to {{post["ldp-label-space-id"]}}!
+      info: LDP Label Space ID change check
+      no-diff: ldp-label-space-id
+    - err: LDP Interface Neighbor {{post["ldp-neighbor-address"]}} changed from {{pre["interface-name"]}}
+        to {{post["interface-name"]}}!
+      info: LDP Interface Neighbor change check
+      no-diff: interface-name
+    xpath: ldp-neighbor
+show-mpls-interface:
+- command: show mpls interface
+- iterate:
+    id: interface-name
+    tests:
+    - err: 'MPLS Interface gone missing: {{post["interface-name"]}}'
+      info: MPLS Interface list change check
+      list-not-less: null
+    - err: MPLS Interface {{post["interface-name"]}} state changed from {{pre["mpls-interface-state"]}}
+        to {{post["mpls-interface-state"]}}!
+      info: MPLS Interface state change check
+      no-diff: mpls-interface-state
+    xpath: mpls-interface
+show-mpls-lsp:
+- command: show mpls lsp
+- iterate:
+    id: name
+    tests:
+    - err: MPLS Ingress LSP '{{post["mpls-lsp/name"]}}' is not Up
+      info: Health Check - Any MPLS Ingress LSPs not Up?
+      is-equal: mpls-lsp/lsp-state, Up
+    xpath: rsvp-session-data[session-type="Ingress"]/rsvp-session
+- iterate:
+    id: name
+    tests:
+    - err: 'MPLS Egress LSP gone missing: {{id_0}}'
+      info: MPLS Egress LSP Egress list change check
+      list-not-less: null
+    - err: MPLS Egress LSP {{id_0}} state changed from {{pre["lsp-state"]}} to {{post["lsp-state"]}}!
+      info: MPLS Egress LSP State change check
+      no-diff: lsp-state
+    - err: MPLS Egress LSP '{{post["name"]}}' is not Up
+      info: Health Check - Any MPLS Egress LSPs not Up?
+      is-equal: lsp-state, Up
+    xpath: rsvp-session-data[session-type="Egress"]/rsvp-session
+- item:
+    id: session-type
+    tests:
+    - delta: count, 5%
+      err: MPLS LSP {{id_0}} count changed from {{pre["count"]}} to {{post["count"]}}!
+      info: MPLS LSP Transit Delta change check
+    xpath: rsvp-session-data[session-type="Transit"]
+- iterate:
+    id: name
+    tests:
+    - err: 'MPLS Transit LSP gone missing: {{post["name"]}}'
+      info: MPLS Transit LSP list change check
+      list-not-less: null
+    - err: MPLS Transit LSP {{post["name"]}} state changed from {{pre["lsp-state"]}}
+        to {{post["lsp-state"]}}!
+      info: MPLS Transit LSP State change check
+      no-diff: lsp-state
+    xpath: rsvp-session-data[session-type="Transit"]/rsvp-session
+show-pim-neighbors:
+- command: show pim neighbors
+- iterate:
+    id: pim-interface-name
+    tests:
+    - err: 'PIM Neighbor gone missing: {{post["pim-interface-name"]}}'
+      info: PIM Neighbor list change check
+      list-not-less: null
+    - err: PIM Neighbor Address {{post["pim-interface-name"]}} changed from {{pre["pim-neighbor-address"]}}
+        to {{post["pim-neighbor-address"]}}!
+      info: PIM Neighbor Address change check
+      no-diff: pim-neighbor-address
+    - err: PIM IP Protocol Version {{post["pim-interface-name"]}} changed from {{pre["ip-protocol-version"]}}
+        to {{post["ip-protocol-version"]}}!
+      info: PIM IP Protocol Version change check
+      no-diff: ip-protocol-version
+    - err: PIM Protocol Version {{post["pim-interface-name"]}} changed from {{pre["protocol-version"]}}
+        to {{post["protocol-version"]}}!
+      info: PIM Protocol Version change check
+      no-diff: protocol-version
+    xpath: //pim-neighbor
+show-rsvp-interface-extensive:
+- command: show rsvp interface extensive
+- iterate:
+    id: interface-name
+    tests:
+    - err: 'RSPV Interface gone missing: {{post["interface-name"]}}'
+      info: RSVP Interface list change check
+      list-not-less: null
+    - err: RSVP Interface {{post["interface-name"]}} status changed from {{pre["rsvp-status"]}}
+        to {{post["rsvp-status"]}}!
+      info: RSVP Interface status change check
+      no-diff: rsvp-status
+    - delta: rsvp-telink/total-reserved-bandwidth, 5%
+      err: RSVP Interface {{post["interface-name"]}} reserved bandwidth changed from
+        {{pre["rsvp-telink/total-reserved-bandwidth"]}} to {{post["rsvp-telink/total-reserved-bandwidth"]}}!
+      info: RSVP Interface reserved bandwith change by more than 5%
+    xpath: rsvp-interface
+- iterate:
+    tests:
+    - err: 'RSVP Interface {{post["interface-name"]}} has less than 10% available
+        bandwidth: {{post["available-bandwidth"]}} / {{post["max-available-bandwidth"]}}'
+      info: Health Check - No RSVP Interfaces utilizing more than 90% of their Max
+        Available Bandwidth
+      is-bandwidth-quotient-gt-percentage: available-bandwidth, max-available-bandwidth,
+        10%
+    xpath: rsvp-interface/rsvp-telink
+tests_include:
+- show-bgp-summary
+- show-ldp-neighbor
+- show-mpls-lsp
+- show-interfaces-descriptions
+- show-rsvp-interface-extensive
+- show-mpls-interface
+- show-isis-neighbors
+- show-pim-neighbors

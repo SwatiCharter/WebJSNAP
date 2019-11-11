@@ -1,0 +1,253 @@
+/*
+ * Modified script by Michael Pergament, mpergament@juniper.net, Rel.1 -
+ * Description: Add input/output policer $policer_name (if not exist yet) on
+ * each interface which starts with ge- or ae if bandwidth is configured under
+ * logical interface
+ *
+ ** Rev  Date	     Author   Descr
+ ** 1.2   	     jrogers  Only run on primary RE, and only if not during
+ **                           a boot, DIA-Filter
+ ** 2.0	 2015-04-07  jrogers  Add support for DIA-Filter-v6
+ ** 3.0  2015-10-12  jrogers  Remove upstream policing (being moved to the NID)
+ **                           for all port types except NNI and UNI
+ ** 4.0  2017-09-21  jrogers  Rename DIA to FIA and change FIA policing to use layer2-policer
+ ** 4.1  2017-09-28  jrogers  BUGFIX: apply layer2-policer only to family inet
+ ** 4.2  2017-10-05  pmontero FUTURE_PROOF FIA IPv6-only and correction to NNIx phy-interface description standards
+ ** 4.3  2017-10-13  pmontero BUGFIX: delete configured family inet policer input/output on the service
+ */
+version 1.0;
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+
+import "../import/junos.xsl";
+
+/* use a global connection for all rpc connections */
+var $connection = jcs:open();
+
+match configuration {
+ if (not($junos-context/commit-context/commit-boot) && $junos-context/re-master) {
+    var $top = .;
+    for-each (interfaces/interface/unit[@junos:changed]) {
+        var $phyifname = ../name;
+        var $unit = name;
+        var $ifname = ../name _ "." _ name;
+        var $family = {
+            if ($top/interfaces/interface[name == $phyifname]/unit[name == $unit]/encapsulation) {
+                expr substring-after($top/interfaces/interface[name == $phyifname]/unit[name == $unit]/encapsulation,"-");
+            } else if ( $unit == 0 && $top/interfaces/interface[name == $phyifname]/encapsulation) {
+                expr substring-after($top/interfaces/interface[name == $phyifname]/encapsulation,"-");
+            } else {
+                expr "inet";
+            }
+        }
+
+        var $policer_in = $top/interfaces/interface[name == $phyifname]/unit[name == $unit]/family/*[name() == $family]/policer/input;
+        var $policer_out = $top/interfaces/interface[name == $phyifname]/unit[name == $unit]/family/*[name() == $family]/policer/output;
+        var $fia_in = $top/interfaces/interface[name == $phyifname]/unit[name == $unit]/layer2-policer/input;
+        var $fia_out = $top/interfaces/interface[name == $phyifname]/unit[name == $unit]/layer2-policer/output;
+        var $descr = {
+           if ( $unit == 0 ) {
+              expr $top/interfaces/interface[name == $phyifname]/description;
+           } else {
+              expr $top/interfaces/interface/unit[name == $unit]/description;
+           }
+        }
+        var $phydescr = $top/interfaces/interface[name == $phyifname]/description;
+        var $police_if = starts-with($descr, "CUST:") || starts-with($descr, "CARR:") || starts-with($descr, "INT:") || starts-with($descr, "PRI:") || starts-with($descr, "UNI:");
+        var $policer_name = $top/interfaces/interface[name == $phyifname]/unit[name == $unit]/bandwidth[ not(@junos:group ) && @junos:changed ];
+ /* <xnm:warning> { <message> $police_if _ " " _ $ifname _ " " _ $descr _ " " _ $family; } */
+        if (not(jcs:empty($policer_name))) {
+            <xnm:warning> {
+                <message> "Applying " _ $policer_name _ " policer to " _ $top/interfaces/interface[name == $phyifname]/unit[name == $unit]/description;
+            }
+            <change> {
+                <firewall> {
+                    <policer> {
+                        <name>$policer_name;
+                        <logical-interface-policer>;
+                        <if-exceeding> {
+                            <bandwidth-limit>$policer_name;
+                            <burst-size-limit>"1m";
+                        }
+                        <then> {
+                            <discard>;
+                        }
+                    }
+                }
+                <interfaces> {
+                    <interface> {
+                        <name> $phyifname;
+                        <unit> {
+                            <name> $unit;
+                            if (jcs:empty($fia_in) && jcs:empty($fia_out) && ($family = "inet") || ($family = "inet6")) {
+				<layer2-policer> {
+                                    if (starts-with($phydescr, "UNI") || starts-with($phydescr, "NNI0:") || starts-with($phydescr, "NNI1:") || starts-with($phydescr, "NNI2:"))  {
+                                        <input-policer> $policer_name;
+                                    }
+                                    <output-policer> $policer_name;
+                                }
+			    }
+                            <family> {
+                                if ($family = "inet") {
+                                    <inet> {
+                                        <filter> {
+                                            <input> "FIA-Filter";
+                                        }
+                                        <policer> {
+                                        if (not(jcs:empty($policer_in))) {
+                                            <input delete="delete">;
+                                            }
+                                        if (not(jcs:empty($policer_out))) {
+                                            <output delete="delete">;
+                                            }
+                                        }
+                                    }
+                                    <inet6> {
+                                        <filter> {
+                                            <input> "FIA-Filter-v6";
+                                        }
+                                    }
+                                }
+                                if ($family = "ccc") {
+                                    <ccc> {
+                                        <policer> {
+                                            if (jcs:empty($policer_in)) {
+                                                if (starts-with($phydescr, "NNI") || starts-with($phydescr, "UNI:"))  {
+                                                  <input> $policer_name;
+                                                }
+                                            }
+                                            if (jcs:empty($policer_out)) {
+                                                <output> $policer_name;
+                                            }
+                                        }
+                                    }
+                                }
+                                if ($family = "bridge") {
+                                    <bridge> {
+                                        <policer> {
+                                            if (jcs:empty($policer_in)) {
+                                                if (starts-with($phydescr, "NNI") || starts-with($phydescr, "UNI:"))  {
+                                                  <input> $policer_name;
+                                                }
+                                            }
+                                            if (jcs:empty($policer_out)) {
+                                                <output> $policer_name;
+                                            }
+                                        }
+                                    }
+                                }
+                                if ($family = "vpls") {
+                                    <vpls> {
+                                        <policer> {
+                                            if (jcs:empty($policer_in)) {
+                                                if (starts-with($phydescr, "NNI") || starts-with($phydescr, "UNI:"))  {
+                                                  <input> $policer_name;
+                                                }
+                                            }
+                                            if (jcs:empty($policer_out)) {
+                                                <output> $policer_name;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+              if ($family = "inet") {
+                var $current-time = {
+                   call get-current-time();
+                }
+                <firewall> {
+                   <filter> {
+                      if (jcs:empty($top/firewall/filter[name == "FIA-Filter"])) {
+                         <junos:comment> "Applied by SetPolicer.slax commit script on " _ $current-time;
+                      }
+                      <name> "FIA-Filter";
+                      <term> {
+                         <name> "drop";
+                         <from> {
+                            <destination-address> "0.0.0.0/8";
+                            <destination-address> "10.0.0.0/8";
+                            <destination-address> "172.16.0.0/12";
+                            <destination-address> "192.168.0.0/16";
+                            <destination-address> "169.254.0.0/16";
+                            <destination-address> "224.0.0.0/4";
+                         }
+                         <then> {
+                            <discard>;
+                         }
+                      }
+                      <term> {
+                         <name> "allow";
+                         <then> {
+                            <accept>;
+                         }
+                      }
+                    }
+                    <family> {
+                       <inet6> {
+                          <filter> {
+                             if (jcs:empty($top/firewall/family/inet6/filter[name == "FIA-Filter-v6"])) {
+                                <junos:comment> "Applied by SetPolicer.slax commit script on " _ $current-time;
+                             }
+                             <name> "FIA-Filter-v6";
+                             <term> {
+                                <name> "drop";
+                                <from> {
+                                   <address> "::/96";
+                                   <address> "::1/128";
+                                   <address> "::ffff:0:0/96";
+                                   <address> "0100::/64";
+                                   <address> "2001::/32";
+                                   <address> "2001:2::/48";
+                                   <address> "2001:10::/28";
+                                   <address> "2001:db8::/32";
+                                   <address> "fc00::/7";
+                                   <address> "fec0::/10";
+                                   <address> "ff00::/8";
+                                }
+                                <then> {
+                                   <discard>;
+                                }
+                             }
+                             <term> {
+                                <name> "allow";
+                                <then> {
+                                   <accept>;
+                                }
+                             }
+                          }
+                       }
+                    }
+                 }
+              }
+            }
+        } else {
+            /* Check to see that rate limiters are applied, and all jive */
+            if (not($unit=99) && $police_if && $top/interfaces/interface[name == $phyifname]/unit[name == $unit]/description[ not(@junos:group )]) {
+                if (not($policer_name = $policer_in && $policer_in = $policer_out)) {
+                    <xnm:warning> {
+                        <message>  "Bandwidth is NOT set uniformly or at all on " _ $phyifname _ "." _ $unit _ " " _ $top/interfaces/interface[name == $phyifname]/unit[name == $unit]/description;
+                    }
+                }
+            }
+        }
+    }
+  }
+}
+
+template get-current-time () {
+   var $rpc-get-current-time = <rpc> {
+      <get-system-uptime-information>;
+   }
+   var $results-get-current-time = jcs:execute($connection, $rpc-get-current-time);
+   if ($results-get-current-time/multi-routing-engine-item) {
+      var $current-time = $results-get-current-time/multi-routing-engine-item[1]/system-uptime-information/current-time/date-time;
+      <text> $current-time;
+   } else {
+      var $current-time = $results-get-current-time/current-time/date-time;
+      <text> $current-time;
+   }
+}

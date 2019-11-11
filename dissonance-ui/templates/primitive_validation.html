@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row">
+
+    <div class="col-sm-6 col-sm-offset-3">
+        <!-- general form elements -->
+        <div class="box box-primary">
+            <div class="box-header with-border">
+                <h3 class="box-title">Compare</h3>
+            </div>
+            <!-- /.box-header -->
+            <!-- form start -->
+            <form id="formPreSnaps" role="form">
+                <div class="box-body">
+                    <div class="form-group">
+                        <label for="compareHostname">Value</label>
+                        <input type="text" class="form-control" id="compareHostname" name="compareHostname" placeholder="Hostname" value="ASBNVAEG1CW">
+                        <button id="btnRetrieve" type="submit" class="btn btn-primary btn-block" data-loading-text="Retrieving..."><i class="glyphicon glyphicon-camera"></i> Retrieve</button>
+                    </div>
+            </form>
+            <div id="div_result" class="alert alert-success" style="display: none;">
+                <div id="div_result_msg" class="text-center"></div>
+            </div>
+        </div>
+        <!-- /.box -->
+    </div>
+</div>
+
+{% endblock %}
+
+{% block page_javascript %}
+
+{% endblock %}

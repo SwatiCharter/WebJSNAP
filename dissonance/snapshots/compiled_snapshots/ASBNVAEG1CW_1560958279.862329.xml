@@ -1,0 +1,804 @@
+ASBNVAEG1CW@@@@1560958279.862329@@@@show_bgp_summary@@@@
+        <bgp-information>
+        
+                <bgp-peer>
+                    <peer-address>71.42.150.65</peer-address>
+                    <peer-as>11427</peer-as>
+                    <peer-state>Active</peer-state>
+                </bgp-peer>
+                
+                <bgp-peer>
+                    <peer-address>71.42.150.82</peer-address>
+                    <peer-as>11427</peer-as>
+                    <peer-state>Established</peer-state>
+                </bgp-peer>
+                
+                <bgp-peer>
+                    <peer-address>2605:ed00:f001::</peer-address>
+                    <peer-as>11427</peer-as>
+                    <peer-state>Idle</peer-state>
+                </bgp-peer>
+                
+                <bgp-peer>
+                    <peer-address>2605:ed00:f001::8</peer-address>
+                    <peer-as>11427</peer-as>
+                    <peer-state>Active</peer-state>
+                </bgp-peer>
+                
+        </bgp-information>
+         @@@@@@ASBNVAEG1CW@@@@1560958279.862329@@@@show_interfaces_descriptions@@@@
+        <interface-information>
+        
+                            <logical-interface>
+                                <name>Gi0/1/0/1.555</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/2.1280</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>001,88.L2XX.000900...CHTR,chtrcb,l2epln,,10m,SLM_testing  </description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/0/0/3</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>LAG:AUSDTXIR6CW:xe-2/0/0:via_2.1.4</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/17</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.1700</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>ch_upl_id,-,chrtcb,l3mmt,LAB-ASR9K-01-TestCreate,Te,ME3400E-01(AUT1TXC41ZW)</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/14</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.209</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>SLM_Test_ASR9K-116Pro_AUSDTXIRBZW</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>tt73</name>
+                                <admin-status>down</admin-status>
+                                <oper-status>down</oper-status>
+                                <description>AUSDTXIR92W_71.42.150.73</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Te0/1/0/1.1300</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>SLMTEST</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/3</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CPE:AUT1TXC41ZW,ME3400E:ge-0/0/0::CPE:cali-1.5.6</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.1000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>ch_upl_id,-,chrtcb,l3mmt,LAB-ASR9K-02_bvi1000,Te,ASR920-02</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/6.999</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description>LEG2-Spirent Testing-ASR920:VL999</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/11.2300</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:TEST:SPIRENT:7210 TO 7750@:51.L1XX.803187..TWCC:</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/5.555</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/8</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>SLM TEST:ATT HANDOFF:::R CARTER</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>tt75</name>
+                                <admin-status>down</admin-status>
+                                <oper-status>down</oper-status>
+                                <description>AUSDTXIR94W_71.42.150.75</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/1.999</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/11.1000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>7210_SAS_D_ETR_2,bvi1000</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>BE1</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CORE:AUSDTXIR1CW:ae17::</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.2111</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"chn99999999,51.L2XX.000111.120.TWCC,NOKIA OTT,l3obi,AUT1TXC41ZW_gi0/1,15m,97.105.228.180"</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.1241</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:Spirent Testing@3rd floor lab ATX:71.L1XX.99137..TWCC:SLM_testing</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>BV5</name>
+                                <admin-status>down</admin-status>
+                                <oper-status>down</oper-status>
+                                <description>BVI5 descriptio asdfadsf</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/9.1000</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description>"none"</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.999</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/7.10</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"MGMT::JDM-71.42.150.166::"</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/19</name>
+                                <admin-status>down</admin-status>
+                                <oper-status>down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/8.1235</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:Spirent Testing@RAINBOW ST:98.L7XX.654321..TWCC:UNICORN DR</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.78</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>cmr_test_access_group_ipv4_ipv6_net78</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/8.1213</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CARR:ELINE:SLM TESTING R CARTER:3rd floor lab ATX:33.L1XX.000001..TWCC-1213:SLM_testing</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/8.1253</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:SLM TESTING J WERNER ROUND 2@11921 N LOOP 1:28.L1XX.0122333..TWCC:11921 N LOOP 1</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/4</name>
+                                <admin-status>down</admin-status>
+                                <oper-status>down</oper-status>
+                                <description>001,88.L2XX.000900...CHTR,chtrcb,l2epln,,10m,SLM_testing</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/10</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"CPE:AUSDTXIRAZW:116Pro:ETH-1,1Gig,Access:97.105.228.182"</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/5.1000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>MGMT:::97.105.228.181:</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.2424</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"chn99999999,51.L2XX.000244.120.TWCC,NOKIA OTT,l3obi,AUT1TXC41ZW_gi0/1,35m,97.105.228.180"</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.1801</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"CUST:DIA:Nokia Ottawa 2@11921 N MO PAC EXPY:51.L2XX.000333.120.Test:"</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/1.1100</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:FIA:TWC INTERNAL CIENA@11921 N MOPAC EXPY:51.L1XX.802188..TWCC:</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Te0/0/0/2.4000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>INT:ELINE:SPIRENT - NFX@US11896:AUSDTXIR2FX:</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.1000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>ch_upl_id,-,chrtcb,l3mmt,LAB-ASR9K-01_bvi1000,Te,ME3400E-01(AUT1TXC41ZW)</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/1.1280</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>001,88.L2XX.000900...TWCC,chtrcb,l2epln,,10m,SLM_testing</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/13</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>TESTNNI2:US11645:51.L1XX.803110..TWCC-</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/1.1253</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:SLM TESTING J WERNER ROUND 2@11921 N LOOP 1:28.L1XX.0122333..TWCC:11921 N LOOP 1</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.801</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>LEG1-Spirent Testing-ASR920:VL801</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Te0/1/0/0.4000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>INT:ELINE:SPIRENT - NFX@US11896:AUSDTXIR2FX:</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Mg0/RSP1/CPU0/1</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.803</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"chn99999999,51.L2XX.000803.120.TWCC,NOKIA OTT,l3obi,AUT1TXC41ZW_gi0/1,50m,97.105.228.180"</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>BE2</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CORE:AUSDTXIR6CW:xe-2/0/0:via_2.1.4</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.208</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>SLM_Test_ASR9K-114Pro</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.2000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"L-Charter LBI/OBI/DIA/FIA Example"</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/1/0/0</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>UNI:SPIRENT - NFX:AUSDTXIR2FX:xe-0/0/12:JCP-97.105.228.142</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/8.1212</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CARR::ELINE:SLM TESTING R CARTER@3rd floor lab ATX:22.L1XX.000001..TWCC-1212:SLM_testing</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/0/0/0</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>LAG:AUSDTXIR1CW:xe-0/3/0: via cali-2.1.1</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Mg0/RSP0/CPU0/0</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/6</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description>Secondary Uplink, crtcb,l2trnk,lab-920-TE0/0/2,tge,97.105.228.178</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>BV1000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>chnnetseg1,-,chtrcb,l3mmt,-,gbe,CBN-Administration</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Nu0</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/7</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CPE:SPIRENT - NFX:AUSDTXIR2FX:ge-0/0/9:JDM-71.42.150.166</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/16.2200</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description>TEST CKT:US11645:CID PENDING-VLAN2200</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/8.1242</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:Spirent Testing 920 to 116P@3rd floor lab ATX:71.L1XX.99999..TWCC:SLM_testing</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/12</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>TESTNNI:US11645:51.L1XX.803110..TWCC-</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Mg0/RSP1/CPU0/0</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.1241</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:Spirent Testing@3rd floor lab ATX:71.L1XX.99137..TWCC:SLM_testing</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/7.4000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>down</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/4.1100</name>
+                                <admin-status>down</admin-status>
+                                <oper-status>down</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/0/0/1</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>Secondary Uplink, crtcb,l2trnk,lab-920-TE0/0/3,tge,97.105.228.179</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Te0/2/0/0.1000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>MGMT:::97.105.228.184:</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/4.10</name>
+                                <admin-status>down</admin-status>
+                                <oper-status>down</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/16.1200</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description>TEST CKT:US11645:CID PENDING-VLAN1200</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Lo0</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/1</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CPE:TWC INTERNAL CIENA:11921 N MOPAC EXPY:AUSDTXIR3ZW:</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.1100</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"chn99999999,51.L1XX.008967..TWCC,ANDROMEDA,l3obi,AUT1TXC41ZW_gi0/1,75m,97.105.228.180"</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/9</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description>"none"</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/1.1000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>ch_upl_id,-,chrtcb,l3mmt,LAB-ASR9K-01_bvi1000,Te,ASR920-01</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/2/0/3</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/1/0/1</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CPE:AUSDTXIRAZW:116Pro:ETH-7,10Gig:97.105.228.182</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/2/0/1</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description>CPE:AUSLAB220A2:RAD220:ETH-4/2:</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/1.100</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>down</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.1200</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:SLM TESTING 114 TO ME3400@11921 N MOPAC EXPY:71.L1XX.99125..TWCC:11921 N MOPAC EXPY</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/2/0/2</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/0</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CPE:LAB-920-02:97.105.228.179::</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/18</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/10.701</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CARR:ELINE:SPIRENT EXEC DEMO@9K TO 116PRO:17.TAXX.017002..TWCC-701:9K TO 116PRO</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/15</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.1299</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:Spirent Testing@3rd floor lab ATX:71.L1XX.001299..TWCC:SLM_testing</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/2</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CPE:ASR920-02:::cali-2.1.6</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/13.2200</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>TEST CKT:US11645:51.L1XX.803110..TWCC-VLAN2200</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/5</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CPE:ANDROMEDA PROJECT TEST:11921 N MOPAC EXPY:AUT1TX341ZW:</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Te0/1/0/1.1000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>ch_upl_id,-,chrtcb,l3mmt,LAB-ASR9K-01_bvi1000,Te,ADVA116Pro(AUSDTXIRAZW)</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/10.1200</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>TEST CKT:US11645:51.L1XX.803110..TWCC-VLAN1200</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/11.1300</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CUST:ELINE:TEST:SPIRENT:7210 TO 7750@:51.L1XX.803187..TWCC:</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/16</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Te0/0/0/1.802</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>LEG2-Spirent Testing-ASR920:VL802</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/2/0/0</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CPE:AUSLAB220A2:RAD220:ETH-4/1:</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.104</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CARR:ELINE:SLM@920 REFLECTOR:10.TCXX.000104..TWCC:116PRO PROBE</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/10.2200</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>TEST CKT:US11645:51.L1XX.803110..TWCC-VLAN2200</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>BE2.1101</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>down</oper-status>
+                                <description>Testing for TPE model-updated</description>
+                            </logical-interface>
+                        
+                            <physical-interface>
+                                <name>Te0/0/0/2</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>UNI:SPIRENT - NFX:AUSDTXIR2FX:xe-0/0/13:JCP-97.105.228.142</description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Mg0/RSP0/CPU0/1</name>
+                                <admin-status>admin-down</admin-status>
+                                <oper-status>admin-down</oper-status>
+                                <description></description>
+                            </physical-interface>
+                        
+                            <physical-interface>
+                                <name>Gi0/1/0/11</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>7210_SAS_D_ETR_2,SLM_pair_test,97.105.228.183</description>
+                            </physical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.44</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/2.1000</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>ch_upl_id,-,chrtcb,l3mmt,LAB-ASR9K-01_bvi1000,Te,ASR920-02</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.2526</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"chn99999999,51.L2XX.000255.120.TWCC,NOKIA OTT,l3obi,AUT1TXC41ZW_gi0/1,40m,97.105.228.180"</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/12.1200</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>TEST CKT:US11645:51.L1XX.803110..TWCC-VLAN1200</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.99</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>down</oper-status>
+                                <description></description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/0.102</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CARR:ELINE:SLM_PAIR_20@920 REFLECTOR:10.TCXX.000102..TWCC:114PRO PROBE</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/3.2222</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>"chn99999999,51.L2XX.000222.120.TWCC,NOKIA OTT,l3obi,AUT1TXC41ZW_gi0/1,30m,97.105.228.180"</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Te0/1/0/1.702</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>CARR:ELINE:SPIRENT EXEC DEMO@9K TO 116PRO:17.TAXX.017002..TWCC-702:9K TO 116PRO</description>
+                            </logical-interface>
+                        
+                            <logical-interface>
+                                <name>Gi0/1/0/1.1300</name>
+                                <admin-status>up</admin-status>
+                                <oper-status>up</oper-status>
+                                <description>SLMTEST</description>
+                            </logical-interface>
+                        
+        </interface-information>
+         @@@@@@ASBNVAEG1CW@@@@1560958279.862329@@@@show_isis_neighbors@@@@
+        <isis-adjacency-information>
+        
+                            <isis-adjacency>
+                                <interface-name>BE2</interface-name>
+                                <system-name>AUSDTXIR6CW</system-name>
+                                <level>L1</level>
+                                <adjacency-state>Up</adjacency-state>
+                                <holdtime>2</holdtime>
+                                <snpa>*PtoP*</snpa>
+                            </isis-adjacency>
+                        
+                            <isis-adjacency>
+                                <interface-name>BE1</interface-name>
+                                <system-name>AUSDTXIR1CW</system-name>
+                                <level>L1</level>
+                                <adjacency-state>Up</adjacency-state>
+                                <holdtime>2</holdtime>
+                                <snpa>*PtoP*</snpa>
+                            </isis-adjacency>
+                        
+        </isis-adjacency-information>
+         @@@@@@

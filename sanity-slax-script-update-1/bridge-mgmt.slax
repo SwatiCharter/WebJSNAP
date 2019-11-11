@@ -1,0 +1,85 @@
+/*
+ * ==============================================================================
+ * title          : bridge-disable.slax
+ * description    : This script ensures all unit 99 interfaces are bridged
+ *                 
+ * author         : @author
+ * date           : 2014-03-18
+ * version        : @version $Id: bridge-mgmt.slax 127 2014-05-13 14:32:06Z E122248 $
+ * notes          : Project started - ???
+ *                : Modified by Carl Romanik - Members of bridge-domain LEGACYCPEMGMT will be ignored 03-18-14 v124
+ *                : Modified by Doug Straub - Ignore customer interfaces like CARR or CUST
+ *                
+ ** Rev   Descr
+ ** 135   Only run if on primary RE and not during bootup
+ * ==============================================================================
+*/
+ 
+version 1.1;
+ 
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+ 
+import "../import/junos.xsl";
+ 
+match configuration {
+ if (not($junos-context/commit-context/commit-boot) && $junos-context/re-master) {
+  /* setting variable equal to the "bridge-domain CPEMGMT" context */
+  var $irb99 = bridge-domains/domain[name == "CPEMGMT"];
+  /* variable containing all information from bridge-domains context */
+  var $bd = bridge-domains;
+  var $oamif = protocols/oam/ethernet/link-fault-management;
+ 
+  /* for each unit99 interface  */
+  for-each (interfaces/interface[ not(starts-with(name, "irb"))]/unit[ name=="99" ]) {
+ 
+    /* variable to equal phy.log interface name */
+    var $ifname = ../name;
+    var $logical = ../name _ "." _ name;
+     /* Don't add CPE MGMT to customer logical interfaces: CARR, CUST */
+    var $descr_fields = jcs:split("(:)", description);
+    if (not(($descr_fields[1] == "CARR") || ($descr_fields[1] == "CUST"))) {
+
+    /* if the current phy.log is not already configured under bridge-domains
+       OR it is configured in the "bridge-domain" context and the oam config is missing*/
+      if (not($bd//interface[name == $logical]) || (($irb99/interface[name == $logical]) && (not($oamif/interface[name == $ifname])))) { 
+
+        /* if the phy.log interface is not already configured in the "bridge-domain" or oam ethernet context */
+        if (($irb99 && not($irb99/interface[name == $logical])) || not($oamif/interface[name == $ifname])) {
+ 
+          /* variable to equal cli message */
+          var $message = "Adding " _ $ifname _ " to OAM and CPE MGMT";
+   
+          /* variable to equal where to make the change */
+          var $dot = /commit-script-input/configuration;
+   
+          /* variable to equal the config added */
+          var $content = {
+            <bridge-domains> {
+              <domain> {
+                <name> "CPEMGMT";
+                <interface> $logical;
+              }
+            }
+            <protocols> {
+                    <oam> {
+                            <ethernet> {
+                                    <link-fault-management> {
+                                            <interface> {
+                                                    <name> $ifname;
+                                                    <pdu-interval> 1000;
+                                            }
+                                    }
+                            }
+                    }
+            }
+          }
+          /* change function call */
+          call jcs:emit-change($dot, $message, $content);
+        }
+      }
+    }
+   }
+ }
+}

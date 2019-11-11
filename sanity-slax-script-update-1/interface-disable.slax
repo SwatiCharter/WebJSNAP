@@ -1,0 +1,182 @@
+/*
+ * This script disables all unconfigured ge interfaces.
+ * 
+ * v1.1 7/8/10 - match only interfaces missing description to include ones with apply-group SERVICEPORT only.
+ * v2.0 2/29/16 - Remove SERVICEPORT application entirely.  This should go on during provisioning
+ *
+ */
+ 
+version 1.1;
+ 
+ns junos = "http://xml.juniper.net/junos/*/junos";
+ns xnm = "http://xml.juniper.net/xnm/1.1/xnm";
+ns jcs = "http://xml.juniper.net/junos/commit-scripts/1.0";
+ 
+import "../import/junos.xsl";
+ 
+match configuration {
+ 
+  /* Figure out routing engine, and kill if backup */
+  if (not($junos-context/commit-context/commit-boot) && $junos-context/re-master) {
+
+    /* Get config */
+    var $configuration = .;
+    var $interfaces = jcs:invoke( "get-interface-information" );
+ 
+    /* Only ge and xe interfaces */
+    var $phyinterfaces = $interfaces/physical-interface[starts-with(name, "ge-") or starts-with(name, "xe-")];
+ 
+    /* Go through each ge interface, if it isn't within the configuration than apply-group DISABLEIF */
+    for-each( $phyinterfaces ) { 
+       var $this = name; 
+       if ( $configuration/interfaces/interface[name == $this][jcs:empty(disable)][jcs:empty(description)] ) {
+             <xnm:warning> {
+                <message> "No description found, disabling " _ name;
+             }
+             <change> {
+                <interfaces> {
+                   <interface> {
+                      <name> name;
+                      <apply-groups> "DISABLEIF";
+                   }
+                }
+             }
+       } else if( $configuration/interfaces/interface[ name == $this ]) {
+       } else {
+             <xnm:warning> {
+                <message> "No interface found, disabling " _ name;
+ 
+             }
+             <change> {
+                <interfaces> {
+                    <interface> {
+                        <name> name;
+                        <apply-groups> "DISABLEIF";
+                    }
+                }
+             }
+        }
+    }
+  }
+}
+
+var $master = "master";
+var $backup = "backup";
+var $linecard = "linecard";
+var $unknown = "unknown";
+
+/* find out if RE is active/backup */
+template get-local-re() {
+    /* EX3200 specific */
+    if( starts-with( $product, "ex32" ) ) {
+        /* Always re0 */
+        expr "re0";
+    }
+    /* EX4200 specific */
+    else if( starts-with( $product, "ex42" ) ) {
+        /* Determine based on "show virtual chassis */
+        var $virtual-chassis = jcs:invoke("get-virtual-chassis-information");
+        if( $virtual-chassis/member-list/member[contains(member-role,"*")]/member-id ) {
+            expr "re" _ $virtual-chassis/member-list/member[contains(member-role,"*")]/member-id;
+        }
+        else {
+            expr "unknown";
+        }
+    }
+    else {
+        /* Determine based on show chassis routing-engine - presence of load-average */
+        var $routing-engine-info = jcs:invoke( "get-route-engine-information" );
+
+        /* Does it have slot information?  If not then it's a single slot machine so return re0 */
+        if( not( $routing-engine-info/route-engine/slot ) ) {
+		    expr "re0";
+        }
+        /* Does only re0 have the load-average-one tag?  That indicates the current RE. */
+        else if( $routing-engine-info/route-engine[slot == "0"]/load-average-one and
+                jcs:empty($routing-engine-info/route-engine[slot == "1"]/load-average-one) ) {
+		    expr "re0";
+        }
+        /* Does only re1 have the load-average-one tag?  That indicates the current RE. */
+        else if( $routing-engine-info/route-engine[slot == "1"]/load-average-one and
+                jcs:empty($routing-engine-info/route-engine[slot == "0"]/load-average-one) ) {
+		    expr "re1";
+        }
+        /* Default to unknown */
+        else {
+		    expr "unknown";
+        }
+    }
+}
+
+/* Returns slot # based on re# - simple template but prevents mistakes - returns ? if it can't tell */
+template get-slot-number( $re ) {
+    if( string-length( $re ) == 0 ) {
+        expr "?";
+    }
+    else {
+        var $last-char = substring( $re, string-length( $re ), 1 );
+        /* Is it a number? */
+        if( string( number( $last-char ) ) != "NaN" ) {
+            expr $last-char;
+        }
+        else {
+            expr "?";
+        }
+    }
+}
+
+template get-re-state( $slot ) {
+    /* EX3200 specific */
+    if( starts-with( $product, "ex32" ) ) {
+        /* Always master */
+        expr $master;
+    }
+    /* EX4200 specific */
+    else if( starts-with( $product, "ex42" ) ) {
+        /* Determine based on "show virtual chassis */
+        var $virtual-chassis = jcs:invoke("get-virtual-chassis-information");
+        var $fpc-slot =$virtual-chassis/member-list/member[member-id==$slot]; 
+        /* Does it have slot information?  If not then it's a single slot machine so return master */
+        var $master-state = { call to-upper-case( $string = $fpc-slot/member-role ); }
+        if( starts-with( $master-state, "MASTER" ) ) {
+            expr $master;
+        }
+        else if( starts-with( $master-state, "BACKUP" ) ) {
+            expr $backup;
+        }
+        else if( starts-with( $master-state, "LINECARD" ) ) {
+            expr $linecard;
+        }
+        else {
+            expr $unknown;
+        }
+    }
+    else {
+        /* Determine based on show chassis routing-engine */
+        var $routing-engine-info = jcs:invoke( "get-route-engine-information" );
+
+        /* Does it have slot information?  If not then it's a single slot machine so return master */
+        var $master-state = { call to-upper-case( $string = $routing-engine-info/route-engine[slot == $slot]/mastership-state ); }
+        if( not( $routing-engine-info/route-engine/slot ) ) {
+		    expr $master;
+        }
+        else if( $master-state == "MASTER" ) {
+            expr $master;
+        }
+        else if( $master-state == "BACKUP" ) {
+            expr $backup;
+        }
+        else {
+            expr $unknown;
+        }
+    }
+}
+
+/*
+ * Converts the provided string into upper case and returns the upper case
+ * string to the starting template for variable assignment.
+ */ 
+template to-upper-case( $string = "" ) {
+    expr translate( $string, "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ" );
+}
+
