@@ -1,0 +1,4 @@
+CISCO:
+  "ASR 9006": "cisco_xr"
+JUNIPER:
+  "*": "juniper"
